@@ -1,3 +1,4 @@
+import 'package:envelope/app/router/app_router.dart';
 import 'package:envelope/app/theme/app_theme.dart';
 import 'package:envelope/l10n/l10n.dart';
 import 'package:flutter/material.dart';
@@ -11,15 +12,13 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
+      routerConfig: appRouter,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: const Scaffold(
-        body: Center(child: Text('EnvelopAI')),
-      ),
     );
   }
 }

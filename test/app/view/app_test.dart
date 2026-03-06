@@ -6,9 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('App', () {
-    testWidgets('renders', (tester) async {
+    testWidgets('renders budget screen on launch', (tester) async {
       await tester.pumpWidget(App());
-      expect(find.text('EnvelopAI'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('Budget'), findsWidgets);
     });
   });
 }
