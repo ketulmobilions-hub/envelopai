@@ -6,11 +6,11 @@ import 'package:envelope/data/database/daos/category_groups_dao.dart';
 import 'package:envelope/data/database/daos/transactions_dao.dart';
 import 'package:injectable/injectable.dart';
 
-Future<void> _closeDatabase(AppDatabase db) => db.close();
+Future<void> closeDatabase(AppDatabase db) => db.close();
 
 @module
 abstract class DatabaseModule {
-  @Singleton(dispose: _closeDatabase)
+  @Singleton(dispose: closeDatabase)
   AppDatabase get appDatabase => AppDatabase();
 
   @LazySingleton()

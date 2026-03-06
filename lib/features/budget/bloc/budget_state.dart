@@ -1,0 +1,40 @@
+part of 'budget_bloc.dart';
+
+sealed class BudgetState extends Equatable {
+  const BudgetState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+final class BudgetInitial extends BudgetState {
+  const BudgetInitial();
+}
+
+final class BudgetLoading extends BudgetState {
+  const BudgetLoading();
+}
+
+final class BudgetLoaded extends BudgetState {
+  const BudgetLoaded({
+    required this.entries,
+    required this.month,
+    required this.year,
+  });
+
+  final List<BudgetEntry> entries;
+  final int month;
+  final int year;
+
+  @override
+  List<Object?> get props => [entries, month, year];
+}
+
+final class BudgetError extends BudgetState {
+  const BudgetError({required this.message});
+
+  final String message;
+
+  @override
+  List<Object?> get props => [message];
+}
