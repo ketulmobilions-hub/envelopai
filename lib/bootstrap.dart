@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:developer';
 
 import 'package:bloc/bloc.dart';
+import 'package:envelope/data/seed/seed_service.dart';
 import 'package:envelope/injection.dart';
 import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
 class AppBlocObserver extends BlocObserver {
@@ -39,6 +41,9 @@ Future<void> bootstrap(
   // Initialise dependency injection before runApp.
   // @dev / @prod scoped registrations are resolved using [environment].
   await configureDependencies(environment: environment);
+
+  // Populate default data on first launch (no-op on subsequent launches).
+  await GetIt.instance<SeedService>().seedIfNeeded();
 
   runApp(await builder());
 }
