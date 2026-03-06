@@ -9,6 +9,7 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:envelope/app/app_module.dart' as _i301;
 import 'package:envelope/data/database/app_database.dart' as _i979;
 import 'package:envelope/data/database/daos/accounts_dao.dart' as _i171;
 import 'package:envelope/data/database/daos/budget_entries_dao.dart' as _i861;
@@ -23,18 +24,25 @@ import 'package:envelope/data/repositories/category_groups_repository.dart'
     as _i385;
 import 'package:envelope/data/repositories/transactions_repository.dart'
     as _i228;
+import 'package:envelope/data/seed/seed_service.dart' as _i1017;
 import 'package:envelope/domain/repositories/repositories.dart' as _i112;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:shared_preferences/shared_preferences.dart' as _i460;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
-  _i174.GetIt init({
+  Future<_i174.GetIt> init({
     String? environment,
     _i526.EnvironmentFilter? environmentFilter,
-  }) {
+  }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
+    final appModule = _$AppModule();
     final databaseModule = _$DatabaseModule();
+    await gh.singletonAsync<_i460.SharedPreferences>(
+      () => appModule.prefs,
+      preResolve: true,
+    );
     gh.singleton<_i979.AppDatabase>(
       () => databaseModule.appDatabase,
       dispose: _closeDatabase,
@@ -75,8 +83,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i112.IAccountsRepository>(
       () => _i65.AccountsRepository(gh<_i171.AccountsDao>()),
     );
+    gh.lazySingleton<_i1017.SeedService>(
+      () => _i1017.SeedService(
+        gh<_i460.SharedPreferences>(),
+        gh<_i112.IAccountsRepository>(),
+        gh<_i112.ICategoryGroupsRepository>(),
+        gh<_i112.ICategoriesRepository>(),
+      ),
+    );
     return this;
   }
 }
+
+class _$AppModule extends _i301.AppModule {}
 
 class _$DatabaseModule extends _i342.DatabaseModule {}
