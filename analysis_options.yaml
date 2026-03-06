@@ -6,6 +6,7 @@ analyzer:
     - lib/l10n/gen/*
     - lib/injection.config.dart
     - lib/data/database/app_database.g.dart
+    - lib/data/database/daos/*.g.dart
 linter:
   rules:
     public_member_api_docs: false
