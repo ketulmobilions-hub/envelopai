@@ -2,10 +2,13 @@ import 'package:envelope/data/database/app_database.dart';
 import 'package:envelope/data/database/daos/transactions_dao.dart';
 import 'package:envelope/data/repositories/transactions_repository.dart';
 import 'package:envelope/domain/models/models.dart';
+import 'package:envelope/domain/repositories/repositories.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockTransactionsDao extends Mock implements TransactionsDao {}
+
+class MockIBudgetRepository extends Mock implements IBudgetRepository {}
 
 final DateTime _date = DateTime.utc(2026, 3, 6);
 final DateTime _updatedAt = DateTime.utc(2026, 3, 6);
@@ -53,11 +56,13 @@ void main() {
   setUpAll(() => registerFallbackValue(const TransactionsTableCompanion()));
 
   late MockTransactionsDao dao;
+  late MockIBudgetRepository budgetRepo;
   late TransactionsRepository repo;
 
   setUp(() {
     dao = MockTransactionsDao();
-    repo = TransactionsRepository(dao);
+    budgetRepo = MockIBudgetRepository();
+    repo = TransactionsRepository(dao, budgetRepo);
   });
 
   group('TransactionsRepository', () {

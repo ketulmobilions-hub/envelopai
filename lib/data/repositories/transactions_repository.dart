@@ -7,9 +7,10 @@ import 'package:injectable/injectable.dart';
 
 @LazySingleton(as: ITransactionsRepository)
 class TransactionsRepository implements ITransactionsRepository {
-  const TransactionsRepository(this._dao);
+  const TransactionsRepository(this._dao, this._budgetRepo);
 
   final TransactionsDao _dao;
+  final IBudgetRepository _budgetRepo;
 
   @override
   Stream<List<Transaction>> watchAll() =>
@@ -30,6 +31,73 @@ class TransactionsRepository implements ITransactionsRepository {
   @override
   Stream<List<Transaction>> watchByAccount(String accountId) =>
       _dao.watchByAccount(accountId).map((rows) => rows.map(_toModel).toList());
+
+  @override
+  Future<void> addTransaction(Transaction transaction) async {
+    await _dao.upsert(_toCompanion(transaction));
+    if (transaction.categoryId != null) {
+      await _budgetRepo.recalculateAvailable(
+        transaction.categoryId!,
+        transaction.date.month,
+        transaction.date.year,
+      );
+    }
+  }
+
+  @override
+  Future<void> updateTransaction(Transaction transaction) async {
+    // Capture old state before overwriting so we can recalculate the old
+    // budget slot if the category or month/year changed.
+    final oldRow = await _dao.getById(transaction.id);
+
+    await _dao.upsert(_toCompanion(transaction));
+
+    // Recalculate new slot.
+    if (transaction.categoryId != null) {
+      await _budgetRepo.recalculateAvailable(
+        transaction.categoryId!,
+        transaction.date.month,
+        transaction.date.year,
+      );
+    }
+
+    // Recalculate old slot if it differs from the new one.
+    if (oldRow != null && oldRow.categoryId != null) {
+      final oldDate = DateTime.fromMillisecondsSinceEpoch(
+        oldRow.date,
+        isUtc: true,
+      );
+      final slotChanged =
+          oldRow.categoryId != transaction.categoryId ||
+          oldDate.month != transaction.date.month ||
+          oldDate.year != transaction.date.year;
+      if (slotChanged) {
+        await _budgetRepo.recalculateAvailable(
+          oldRow.categoryId!,
+          oldDate.month,
+          oldDate.year,
+        );
+      }
+    }
+  }
+
+  @override
+  Future<void> deleteTransaction(
+    String id, {
+    required int updatedAtMs,
+  }) async {
+    // Fetch before soft-deleting so we know which budget entry to recalculate.
+    final row = await _dao.getById(id);
+    await _dao.softDelete(id, updatedAtMs: updatedAtMs);
+    if (row != null && row.categoryId != null) {
+      final date = DateTime.fromMillisecondsSinceEpoch(row.date, isUtc: true);
+      await _budgetRepo.recalculateAvailable(
+        row.categoryId!,
+        date.month,
+        date.year,
+      );
+    }
+  }
 
   @override
   Future<void> save(Transaction transaction) =>

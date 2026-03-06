@@ -28,6 +28,15 @@ class AccountsRepository implements IAccountsRepository {
   }
 
   @override
+  Future<void> addAccount(Account account) => save(account);
+
+  @override
+  Future<void> updateAccount(Account account) => save(account);
+
+  @override
+  Future<void> deleteAccount(String id) => deleteById(id);
+
+  @override
   Future<void> save(Account account) => _dao.upsert(_toCompanion(account));
 
   @override

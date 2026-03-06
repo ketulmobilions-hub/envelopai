@@ -48,4 +48,33 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
           updatedAt: Value(updatedAtMs),
         ),
       );
+
+  /// Returns the sum of `amount` for all non-deleted transactions whose
+  /// `categoryId` and date fall within [month]/[year].
+  ///
+  /// A positive result means net inflow; negative means net outflow (spending).
+  /// Returns 0 when there are no matching rows.
+  ///
+  /// Note: `DateTime.utc(year, 13)` rolls over to Jan of the next year, so
+  /// month = 12 is handled correctly.
+  Future<int> sumAmountsForCategory(
+    String categoryId,
+    int month,
+    int year,
+  ) async {
+    final startMs = DateTime.utc(year, month).millisecondsSinceEpoch;
+    final endMs = DateTime.utc(year, month + 1).millisecondsSinceEpoch;
+    final amountSum = transactionsTable.amount.sum();
+    final result =
+        await (selectOnly(transactionsTable)
+              ..addColumns([amountSum])
+              ..where(
+                transactionsTable.categoryId.equals(categoryId) &
+                    transactionsTable.isDeleted.equals(false) &
+                    transactionsTable.date.isBiggerOrEqualValue(startMs) &
+                    transactionsTable.date.isSmallerThanValue(endMs),
+              ))
+            .getSingleOrNull();
+    return result?.read(amountSum) ?? 0;
+  }
 }
