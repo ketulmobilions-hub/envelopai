@@ -16,3 +16,7 @@ main   ← releases only, PR from dev required
 ```
 
 Both `main` and `dev` have branch protection rules enforced on GitHub (no direct push, PR required).
+
+# Code Review Rule
+
+**Before every commit**, run the `code-reviewer` agent on all files changed in that issue. Fix every issue the agent raises before committing. Only commit once the agent reports no critical or warning-level findings.
