@@ -55,7 +55,10 @@ extension GetItInjectableX on _i174.GetIt {
       () => databaseModule.transactionsDao(gh<_i979.AppDatabase>()),
     );
     gh.lazySingleton<_i112.IBudgetRepository>(
-      () => _i927.BudgetRepository(gh<_i861.BudgetEntriesDao>()),
+      () => _i927.BudgetRepository(
+        gh<_i861.BudgetEntriesDao>(),
+        gh<_i268.TransactionsDao>(),
+      ),
     );
     gh.lazySingleton<_i112.ICategoryGroupsRepository>(
       () => _i385.CategoryGroupsRepository(gh<_i1034.CategoryGroupsDao>()),
@@ -64,7 +67,10 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i106.CategoriesRepository(gh<_i261.CategoriesDao>()),
     );
     gh.lazySingleton<_i112.ITransactionsRepository>(
-      () => _i228.TransactionsRepository(gh<_i268.TransactionsDao>()),
+      () => _i228.TransactionsRepository(
+        gh<_i268.TransactionsDao>(),
+        gh<_i112.IBudgetRepository>(),
+      ),
     );
     gh.lazySingleton<_i112.IAccountsRepository>(
       () => _i65.AccountsRepository(gh<_i171.AccountsDao>()),

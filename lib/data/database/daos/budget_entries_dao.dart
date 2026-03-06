@@ -79,6 +79,20 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
         BudgetEntriesTableCompanion(available: Value(available)),
       );
 
+  /// Updates both `activity` and `available` in a single write.
+  /// Called by `BudgetRepository.recalculateAvailable` after every transaction
+  /// mutation.
+  Future<void> updateActivityAndAvailable(
+    String id,
+    int activity,
+    int available,
+  ) => (update(budgetEntriesTable)..where((t) => t.id.equals(id))).write(
+    BudgetEntriesTableCompanion(
+      activity: Value(activity),
+      available: Value(available),
+    ),
+  );
+
   Future<int> deleteById(String id) =>
       (delete(budgetEntriesTable)..where((t) => t.id.equals(id))).go();
 }

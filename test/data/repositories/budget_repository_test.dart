@@ -1,11 +1,14 @@
 import 'package:envelope/data/database/app_database.dart';
 import 'package:envelope/data/database/daos/budget_entries_dao.dart';
+import 'package:envelope/data/database/daos/transactions_dao.dart';
 import 'package:envelope/data/repositories/budget_repository.dart';
 import 'package:envelope/domain/models/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockBudgetEntriesDao extends Mock implements BudgetEntriesDao {}
+
+class MockTransactionsDao extends Mock implements TransactionsDao {}
 
 BudgetEntryRow _row({
   String id = 'be1',
@@ -39,11 +42,13 @@ void main() {
   setUpAll(() => registerFallbackValue(const BudgetEntriesTableCompanion()));
 
   late MockBudgetEntriesDao dao;
+  late MockTransactionsDao transactionsDao;
   late BudgetRepository repo;
 
   setUp(() {
     dao = MockBudgetEntriesDao();
-    repo = BudgetRepository(dao);
+    transactionsDao = MockTransactionsDao();
+    repo = BudgetRepository(dao, transactionsDao);
   });
 
   group('BudgetRepository', () {
