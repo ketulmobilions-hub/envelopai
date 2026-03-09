@@ -1,6 +1,7 @@
 import 'package:envelope/app/app.dart';
 import 'package:envelope/domain/models/models.dart';
 import 'package:envelope/domain/repositories/repositories.dart';
+import 'package:envelope/features/accounts/accounts.dart';
 import 'package:envelope/features/budget/budget.dart';
 import 'package:envelope/injection.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,8 @@ class _MockICategoryGroupsRepository extends Mock
 class _MockICategoriesRepository extends Mock
     implements ICategoriesRepository {}
 
+class _MockIAccountsRepository extends Mock implements IAccountsRepository {}
+
 class _MockSharedPreferences extends Mock implements SharedPreferences {}
 
 void main() {
@@ -22,11 +25,13 @@ void main() {
     late _MockIBudgetRepository mockBudgetRepo;
     late _MockICategoryGroupsRepository mockGroupsRepo;
     late _MockICategoriesRepository mockCategoriesRepo;
+    late _MockIAccountsRepository mockAccountsRepo;
 
     setUp(() {
       mockBudgetRepo = _MockIBudgetRepository();
       mockGroupsRepo = _MockICategoryGroupsRepository();
       mockCategoriesRepo = _MockICategoriesRepository();
+      mockAccountsRepo = _MockIAccountsRepository();
       final mockPrefs = _MockSharedPreferences();
 
       when(() => mockBudgetRepo.watchMonthSummary(any(), any())).thenAnswer(
@@ -40,6 +45,9 @@ void main() {
       when(
         () => mockCategoriesRepo.watchAll(),
       ).thenAnswer((_) => Stream.value(<Category>[]));
+      when(
+        () => mockAccountsRepo.watchAll(),
+      ).thenAnswer((_) => Stream.value(<Account>[]));
       when(() => mockPrefs.getBool(any())).thenReturn(false);
       when(() => mockPrefs.setBool(any(), any())).thenAnswer((_) async => true);
 
@@ -47,6 +55,7 @@ void main() {
         ..registerFactory<IBudgetRepository>(() => mockBudgetRepo)
         ..registerFactory<ICategoryGroupsRepository>(() => mockGroupsRepo)
         ..registerFactory<ICategoriesRepository>(() => mockCategoriesRepo)
+        ..registerFactory<IAccountsRepository>(() => mockAccountsRepo)
         ..registerSingleton<SharedPreferences>(mockPrefs)
         ..registerFactory<BudgetBloc>(
           () => BudgetBloc(
@@ -55,6 +64,9 @@ void main() {
             getIt<ICategoriesRepository>(),
             getIt<SharedPreferences>(),
           ),
+        )
+        ..registerFactory<AccountsBloc>(
+          () => AccountsBloc(getIt<IAccountsRepository>()),
         );
     });
 

@@ -1,3 +1,4 @@
+import 'package:envelope/features/accounts/accounts.dart';
 import 'package:envelope/features/budget/budget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -46,7 +47,7 @@ final appRouter = GoRouter(
               path: _Paths.accounts,
               name: AppRoutes.accounts,
               pageBuilder: (context, state) => const NoTransitionPage(
-                child: _PlaceholderScreen(title: 'Accounts'),
+                child: AccountsPage(),
               ),
               routes: [
                 GoRoute(

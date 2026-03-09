@@ -26,6 +26,7 @@ import 'package:envelope/data/repositories/transactions_repository.dart'
     as _i228;
 import 'package:envelope/data/seed/seed_service.dart' as _i1017;
 import 'package:envelope/domain/repositories/repositories.dart' as _i112;
+import 'package:envelope/features/accounts/bloc/accounts_bloc.dart' as _i847;
 import 'package:envelope/features/budget/bloc/budget_bloc.dart' as _i485;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
@@ -83,6 +84,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i112.IAccountsRepository>(
       () => _i65.AccountsRepository(gh<_i171.AccountsDao>()),
+    );
+    gh.factory<_i847.AccountsBloc>(
+      () => _i847.AccountsBloc(gh<_i112.IAccountsRepository>()),
     );
     gh.factory<_i485.BudgetBloc>(
       () => _i485.BudgetBloc(
