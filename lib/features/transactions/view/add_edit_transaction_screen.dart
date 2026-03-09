@@ -67,16 +67,18 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
   final _payeeController = TextEditingController();
   final _memoController = TextEditingController();
 
-  bool _isInflow = false; // false = expense/outflow, true = income/inflow
+  TransactionType _type = TransactionType.expense;
+
   // Stored in local time for display; converted to UTC on submit via .toUtc().
   DateTime _selectedDate = DateTime.now().toLocal();
   String? _selectedAccountId;
+  String? _selectedToAccountId; // only used for transfers
   String? _selectedCategoryId;
   String? _selectedCategoryName;
   bool _cleared = false;
 
-  /// Set to true after the first time Save is tapped, so category validation
-  /// error is only shown after an attempted submit.
+  /// Set to true after the first time Save is tapped, so validation errors
+  /// are only shown after an attempted submit.
   bool _submitted = false;
 
   /// Whether form fields have been populated from an existing transaction.
@@ -91,7 +93,7 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
   }
 
   void _initFromTransaction(Transaction t, List<Category> cats) {
-    _isInflow = t.amount >= 0;
+    _type = t.type;
     _amountController.text = (t.amount.abs() / 100).toStringAsFixed(2);
     _selectedDate = t.date.toLocal();
     _selectedAccountId = t.accountId;
@@ -133,8 +135,23 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
   void _submit(TransactionFormReady state) {
     setState(() => _submitted = true);
 
+    if (_type == TransactionType.transfer) {
+      _submitTransfer(state);
+      return;
+    }
+
+    // Guard: editing a transfer is not fully supported (partner leg would
+    // diverge). Show an error and return early.
+    if (widget.isEditing && state.existing?.type == TransactionType.transfer) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Editing transfers is not supported.')),
+      );
+      return;
+    }
+
     final formValid = _formKey.currentState?.validate() ?? false;
-    final categoryValid = _isInflow || _selectedCategoryId != null;
+    final categoryValid =
+        _type == TransactionType.income || _selectedCategoryId != null;
     if (!formValid || !categoryValid) return;
 
     final accountId = _selectedAccountId;
@@ -142,7 +159,8 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
 
     final raw = double.tryParse(_amountController.text) ?? 0;
     final amountCents = (raw * 100).round();
-    final signedAmount = _isInflow ? amountCents : -amountCents;
+    final signedAmount =
+        _type == TransactionType.income ? amountCents : -amountCents;
     final now = DateTime.now().toUtc();
     final existing = state.existing;
     final memo = _memoController.text.trim();
@@ -150,13 +168,14 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
     final transaction = Transaction(
       id: existing?.id ?? _uuid.v4(),
       accountId: accountId,
-      categoryId: _isInflow ? null : _selectedCategoryId,
+      categoryId:
+          _type == TransactionType.income ? null : _selectedCategoryId,
       payee: _payeeController.text.trim(),
       amount: signedAmount,
       date: _selectedDate.toUtc(),
       memo: memo.isEmpty ? null : memo,
       cleared: _cleared,
-      type: _isInflow ? TransactionType.income : TransactionType.expense,
+      type: _type,
       transferPairId: existing?.transferPairId,
       updatedAt: now,
       isDeleted: false,
@@ -165,6 +184,52 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
     context
         .read<TransactionFormBloc>()
         .add(TransactionFormSubmitted(transaction: transaction));
+  }
+
+  void _submitTransfer(TransactionFormReady state) {
+    final formValid = _formKey.currentState?.validate() ?? false;
+    final toAccountValid = _selectedToAccountId != null;
+    if (!formValid || !toAccountValid) return;
+
+    final fromAccountId = _selectedAccountId;
+    final toAccountId = _selectedToAccountId;
+    if (fromAccountId == null || toAccountId == null) return;
+
+    // Prevent a transfer from an account to itself.
+    if (fromAccountId == toAccountId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('From and To accounts must be different.'),
+        ),
+      );
+      return;
+    }
+
+    final fromAccountName = state.accounts
+        .where((a) => a.id == fromAccountId)
+        .map((a) => a.name)
+        .firstOrNull ?? fromAccountId;
+    final toAccountName = state.accounts
+        .where((a) => a.id == toAccountId)
+        .map((a) => a.name)
+        .firstOrNull ?? toAccountId;
+
+    final raw = double.tryParse(_amountController.text) ?? 0;
+    final amountCents = (raw * 100).round();
+    final memo = _memoController.text.trim();
+
+    context.read<TransactionFormBloc>().add(
+      TransactionFormTransferSubmitted(
+        fromAccountId: fromAccountId,
+        toAccountId: toAccountId,
+        fromAccountName: fromAccountName,
+        toAccountName: toAccountName,
+        amount: amountCents,
+        date: _selectedDate.toUtc(),
+        memo: memo.isEmpty ? null : memo,
+        cleared: _cleared,
+      ),
+    );
   }
 
   @override
@@ -243,8 +308,13 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
             .map((c) => c.name)
             .firstOrNull;
 
+    final isTransfer = _type == TransactionType.transfer;
+    final isExpense = _type == TransactionType.expense;
+
     final showCategoryError =
-        _submitted && !_isInflow && _selectedCategoryId == null;
+        _submitted && isExpense && _selectedCategoryId == null;
+    final showToAccountError =
+        _submitted && isTransfer && _selectedToAccountId == null;
 
     return Scaffold(
       appBar: AppBar(
@@ -273,25 +343,37 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
-            // ---- Inflow / Outflow toggle ----
+            // ---- Type toggle: Outflow / Inflow / Transfer ----
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SegmentedButton<bool>(
+              child: SegmentedButton<TransactionType>(
                 segments: const [
                   ButtonSegment(
-                    value: false,
+                    value: TransactionType.expense,
                     label: Text('Outflow'),
                     icon: Icon(Icons.arrow_upward),
                   ),
                   ButtonSegment(
-                    value: true,
+                    value: TransactionType.income,
                     label: Text('Inflow'),
                     icon: Icon(Icons.arrow_downward),
                   ),
+                  ButtonSegment(
+                    value: TransactionType.transfer,
+                    label: Text('Transfer'),
+                    icon: Icon(Icons.swap_horiz),
+                  ),
                 ],
-                selected: {_isInflow},
-                onSelectionChanged: (s) =>
-                    setState(() => _isInflow = s.first),
+                selected: {_type},
+                onSelectionChanged: widget.isEditing
+                    ? null
+                    : (s) => setState(() {
+                          _type = s.first;
+                          // Clear to-account when leaving transfer mode.
+                          if (_type != TransactionType.transfer) {
+                            _selectedToAccountId = null;
+                          }
+                        }),
               ),
             ),
 
@@ -306,11 +388,7 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
                 inputFormatters: [
                   // TODO(#57): Replace with a custom TextInputFormatter that
                   // validates the full string, preventing sequences like '..'.
-                  // FilteringTextInputFormatter.allow uses the regex as a
-                  // per-character allowlist, so anchors have no effect.
-                  FilteringTextInputFormatter.allow(
-                    RegExp(r'[0-9.]'),
-                  ),
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                 ],
                 style: theme.textTheme.headlineMedium,
                 decoration: InputDecoration(
@@ -350,14 +428,14 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
 
             const Divider(height: 1),
 
-            // ---- Account ----
+            // ---- From Account (always shown) ----
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: DropdownButtonFormField<String>(
                 value: _selectedAccountId,
-                decoration: const InputDecoration(
-                  labelText: 'Account',
-                  prefixIcon: Icon(Icons.credit_card_outlined),
+                decoration: InputDecoration(
+                  labelText: isTransfer ? 'From Account' : 'Account',
+                  prefixIcon: const Icon(Icons.credit_card_outlined),
                   border: InputBorder.none,
                 ),
                 items: state.accounts
@@ -375,26 +453,63 @@ class _AddEditTransactionViewState extends State<_AddEditTransactionView> {
 
             const Divider(height: 1),
 
-            // ---- Payee ----
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: TextFormField(
-                controller: _payeeController,
-                decoration: const InputDecoration(
-                  labelText: 'Payee',
-                  prefixIcon: Icon(Icons.store_outlined),
-                  border: InputBorder.none,
+            // ---- To Account (transfer only) ----
+            if (isTransfer) ...[
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: DropdownButtonFormField<String>(
+                  value: _selectedToAccountId,
+                  decoration: InputDecoration(
+                    labelText: 'To Account',
+                    prefixIcon: Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: showToAccountError ? colorScheme.error : null,
+                    ),
+                    labelStyle: showToAccountError
+                        ? TextStyle(color: colorScheme.error)
+                        : null,
+                    border: InputBorder.none,
+                  ),
+                  items: state.accounts
+                      .where((a) => a.id != _selectedAccountId)
+                      .map(
+                        (a) => DropdownMenuItem(
+                          value: a.id,
+                          child: Text(a.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedToAccountId = v),
+                  validator: (v) =>
+                      v == null ? 'Select a destination account' : null,
                 ),
-                textCapitalization: TextCapitalization.words,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Enter a payee' : null,
               ),
-            ),
+              const Divider(height: 1),
+            ],
 
-            const Divider(height: 1),
+            // ---- Payee (not shown for transfers) ----
+            if (!isTransfer) ...[
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: TextFormField(
+                  controller: _payeeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Payee',
+                    prefixIcon: Icon(Icons.store_outlined),
+                    border: InputBorder.none,
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Enter a payee' : null,
+                ),
+              ),
+              const Divider(height: 1),
+            ],
 
-            // ---- Category (outflow only) ----
-            if (!_isInflow) ...[
+            // ---- Category (expense only) ----
+            if (isExpense) ...[
               ListTile(
                 leading: Icon(
                   Icons.category_outlined,

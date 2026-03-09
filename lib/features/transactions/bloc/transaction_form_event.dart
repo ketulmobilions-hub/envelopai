@@ -25,3 +25,43 @@ final class TransactionFormSubmitted extends TransactionFormEvent {
   @override
   List<Object?> get props => [transaction];
 }
+
+/// Dispatched when the user saves a transfer transaction.
+final class TransactionFormTransferSubmitted extends TransactionFormEvent {
+  const TransactionFormTransferSubmitted({
+    required this.fromAccountId,
+    required this.toAccountId,
+    required this.fromAccountName,
+    required this.toAccountName,
+    required this.amount,
+    required this.date,
+    this.memo,
+    this.cleared = false,
+  });
+
+  final String fromAccountId;
+  final String toAccountId;
+
+  /// Human-readable account names stored as payees on each transfer leg.
+  final String fromAccountName;
+  final String toAccountName;
+
+  /// Positive amount in minor currency units (cents).
+  final int amount;
+
+  final DateTime date;
+  final String? memo;
+  final bool cleared;
+
+  @override
+  List<Object?> get props => [
+    fromAccountId,
+    toAccountId,
+    fromAccountName,
+    toAccountName,
+    amount,
+    date,
+    memo,
+    cleared,
+  ];
+}

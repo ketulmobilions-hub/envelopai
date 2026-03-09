@@ -4,10 +4,13 @@ import 'package:envelope/data/database/daos/transactions_dao.dart';
 import 'package:envelope/domain/models/models.dart';
 import 'package:envelope/domain/repositories/repositories.dart';
 import 'package:injectable/injectable.dart';
+import 'package:uuid/uuid.dart';
 
 @LazySingleton(as: ITransactionsRepository)
 class TransactionsRepository implements ITransactionsRepository {
-  const TransactionsRepository(this._dao, this._budgetRepo);
+  TransactionsRepository(this._dao, this._budgetRepo);
+
+  static final _uuid = Uuid();
 
   final TransactionsDao _dao;
   final IBudgetRepository _budgetRepo;
@@ -82,13 +85,80 @@ class TransactionsRepository implements ITransactionsRepository {
   }
 
   @override
+  Future<void> addTransfer({
+    required String fromAccountId,
+    required String toAccountId,
+    required String fromAccountName,
+    required String toAccountName,
+    required int amount,
+    required DateTime date,
+    String? memo,
+    bool cleared = false,
+  }) async {
+    final pairId = _uuid.v4();
+    final now = DateTime.now().toUtc();
+
+    final sourceTx = Transaction(
+      id: _uuid.v4(),
+      accountId: fromAccountId,
+      payee: toAccountName,
+      amount: -amount,
+      date: date,
+      memo: memo,
+      cleared: cleared,
+      type: TransactionType.transfer,
+      transferPairId: pairId,
+      updatedAt: now,
+      isDeleted: false,
+    );
+    final destTx = Transaction(
+      id: _uuid.v4(),
+      accountId: toAccountId,
+      payee: fromAccountName,
+      amount: amount,
+      date: date,
+      memo: memo,
+      cleared: cleared,
+      type: TransactionType.transfer,
+      transferPairId: pairId,
+      updatedAt: now,
+      isDeleted: false,
+    );
+
+    // Wrap both writes in a DB transaction to ensure atomicity — a crash
+    // between the two upserts must not leave a half-formed transfer pair.
+    await _dao.attachedDatabase.transaction(() async {
+      await _dao.upsert(_toCompanion(sourceTx));
+      await _dao.upsert(_toCompanion(destTx));
+    });
+  }
+
+  @override
   Future<void> deleteTransaction(
     String id, {
     required int updatedAtMs,
   }) async {
     // Fetch before soft-deleting so we know which budget entry to recalculate.
     final row = await _dao.getById(id);
-    await _dao.softDelete(id, updatedAtMs: updatedAtMs);
+
+    // Wrap the soft-delete(s) in a transaction so both legs of a transfer are
+    // always deleted together — a crash between the two writes must not leave
+    // a ghost row with a dangling transferPairId.
+    await _dao.attachedDatabase.transaction(() async {
+      await _dao.softDelete(id, updatedAtMs: updatedAtMs);
+
+      // Symmetrically soft-delete the transfer partner when applicable.
+      if (row?.transferPairId != null) {
+        final partner = await _dao.getTransferPartner(
+          row!.transferPairId!,
+          excludeId: id,
+        );
+        if (partner != null) {
+          await _dao.softDelete(partner.id, updatedAtMs: updatedAtMs);
+        }
+      }
+    });
+
     if (row != null && row.categoryId != null) {
       final date = DateTime.fromMillisecondsSinceEpoch(row.date, isUtc: true);
       await _budgetRepo.recalculateAvailable(

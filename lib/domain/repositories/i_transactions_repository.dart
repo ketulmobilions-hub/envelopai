@@ -9,6 +9,23 @@ abstract interface class ITransactionsRepository {
   /// Inserts a new transaction and recalculates the affected budget entry.
   Future<void> addTransaction(Transaction transaction);
 
+  /// Creates a pair of linked transfer transactions (source outflow + dest
+  /// inflow). Neither transaction has a [categoryId].
+  ///
+  /// [amount] must be positive (in minor currency units, e.g. cents).
+  /// [fromAccountName] / [toAccountName] are stored as the payee on each leg
+  /// so the UI can render "Transfer to/from [Account]" without extra lookups.
+  Future<void> addTransfer({
+    required String fromAccountId,
+    required String toAccountId,
+    required String fromAccountName,
+    required String toAccountName,
+    required int amount,
+    required DateTime date,
+    String? memo,
+    bool cleared = false,
+  });
+
   /// Updates an existing transaction and recalculates all affected budget
   /// entries (handles category / month changes).
   Future<void> updateTransaction(Transaction transaction);

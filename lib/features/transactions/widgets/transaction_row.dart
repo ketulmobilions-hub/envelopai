@@ -20,7 +20,9 @@ class TransactionRow extends StatelessWidget {
   String get _categoryLabel {
     return switch (transaction.type) {
       TransactionType.income => 'Inflow',
-      TransactionType.transfer => 'Transfer',
+      TransactionType.transfer => transaction.amount < 0
+          ? 'Transfer to ${transaction.payee}'
+          : 'Transfer from ${transaction.payee}',
       TransactionType.expense => transaction.categoryId != null
           ? (categoryNames[transaction.categoryId] ?? 'Unknown Category')
           : '(No Category)',

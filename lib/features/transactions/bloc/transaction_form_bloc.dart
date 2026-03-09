@@ -21,6 +21,10 @@ class TransactionFormBloc
   ) : super(const TransactionFormInitial()) {
     on<TransactionFormStarted>(_onStarted, transformer: restartable());
     on<TransactionFormSubmitted>(_onSubmitted, transformer: sequential());
+    on<TransactionFormTransferSubmitted>(
+      _onTransferSubmitted,
+      transformer: sequential(),
+    );
   }
 
   final IAccountsRepository _accountsRepo;
@@ -89,6 +93,48 @@ class TransactionFormBloc
       emit(const TransactionFormSaved());
     } on Object catch (e) {
       // Return to the ready state so the form remains visible.
+      emit(
+        TransactionFormReady(
+          accounts: current.accounts,
+          groups: current.groups,
+          categories: current.categories,
+          existing: current.existing,
+          saveError: e.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<void> _onTransferSubmitted(
+    TransactionFormTransferSubmitted event,
+    Emitter<TransactionFormState> emit,
+  ) async {
+    final current = state;
+    if (current is! TransactionFormReady) return;
+
+    emit(
+      TransactionFormReady(
+        accounts: current.accounts,
+        groups: current.groups,
+        categories: current.categories,
+        existing: current.existing,
+        isSubmitting: true,
+      ),
+    );
+
+    try {
+      await _transactionsRepo.addTransfer(
+        fromAccountId: event.fromAccountId,
+        toAccountId: event.toAccountId,
+        fromAccountName: event.fromAccountName,
+        toAccountName: event.toAccountName,
+        amount: event.amount,
+        date: event.date,
+        memo: event.memo,
+        cleared: event.cleared,
+      );
+      emit(const TransactionFormSaved());
+    } on Object catch (e) {
       emit(
         TransactionFormReady(
           accounts: current.accounts,

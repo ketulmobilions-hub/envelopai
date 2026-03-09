@@ -49,6 +49,22 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         ),
       );
 
+  /// Returns the other leg of a transfer pair (excludes the row with [excludeId]).
+  ///
+  /// Returns `null` when the partner has already been deleted or doesn't exist.
+  Future<TransactionRow?> getTransferPartner(
+    String transferPairId, {
+    required String excludeId,
+  }) =>
+      (select(transactionsTable)
+            ..where(
+              (t) =>
+                  t.transferPairId.equals(transferPairId) &
+                  t.id.equals(excludeId).not() &
+                  t.isDeleted.equals(false),
+            ))
+          .getSingleOrNull();
+
   /// Returns the sum of `amount` for all non-deleted transactions whose
   /// `categoryId` and date fall within [month]/[year].
   ///
