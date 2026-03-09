@@ -1,3 +1,4 @@
+import 'package:envelope/features/budget/budget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,7 +34,7 @@ final appRouter = GoRouter(
               path: _Paths.budget,
               name: AppRoutes.budget,
               pageBuilder: (context, state) => const NoTransitionPage(
-                child: _PlaceholderScreen(title: 'Budget'),
+                child: BudgetPage(),
               ),
             ),
           ],

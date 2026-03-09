@@ -26,6 +26,7 @@ import 'package:envelope/data/repositories/transactions_repository.dart'
     as _i228;
 import 'package:envelope/data/seed/seed_service.dart' as _i1017;
 import 'package:envelope/domain/repositories/repositories.dart' as _i112;
+import 'package:envelope/features/budget/bloc/budget_bloc.dart' as _i485;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
@@ -45,7 +46,7 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.singleton<_i979.AppDatabase>(
       () => databaseModule.appDatabase,
-      dispose: _closeDatabase,
+      dispose: _i342.closeDatabase,
     );
     gh.lazySingleton<_i171.AccountsDao>(
       () => databaseModule.accountsDao(gh<_i979.AppDatabase>()),
@@ -82,6 +83,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i112.IAccountsRepository>(
       () => _i65.AccountsRepository(gh<_i171.AccountsDao>()),
+    );
+    gh.factory<_i485.BudgetBloc>(
+      () => _i485.BudgetBloc(
+        gh<_i112.IBudgetRepository>(),
+        gh<_i112.ICategoryGroupsRepository>(),
+        gh<_i112.ICategoriesRepository>(),
+        gh<_i460.SharedPreferences>(),
+      ),
     );
     gh.lazySingleton<_i1017.SeedService>(
       () => _i1017.SeedService(
