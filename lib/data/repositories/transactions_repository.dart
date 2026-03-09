@@ -8,12 +8,13 @@ import 'package:uuid/uuid.dart';
 
 @LazySingleton(as: ITransactionsRepository)
 class TransactionsRepository implements ITransactionsRepository {
-  TransactionsRepository(this._dao, this._budgetRepo);
+  TransactionsRepository(this._dao, this._budgetRepo, this._accountsRepo);
 
   static final _uuid = Uuid();
 
   final TransactionsDao _dao;
   final IBudgetRepository _budgetRepo;
+  final IAccountsRepository _accountsRepo;
 
   @override
   Stream<List<Transaction>> watchAll() =>
@@ -125,11 +126,36 @@ class TransactionsRepository implements ITransactionsRepository {
       isDeleted: false,
     );
 
-    // Wrap both writes in a DB transaction to ensure atomicity — a crash
-    // between the two upserts must not leave a half-formed transfer pair.
+    // Fetch accounts before the write so we can compute updated balances.
+    final fromAccount = await _accountsRepo.getById(fromAccountId);
+    final toAccount = await _accountsRepo.getById(toAccountId);
+
+    // Wrap all writes in a single DB transaction for atomicity.
     await _dao.attachedDatabase.transaction(() async {
       await _dao.upsert(_toCompanion(sourceTx));
       await _dao.upsert(_toCompanion(destTx));
+
+      // Update stored balances on both accounts.
+      if (fromAccount != null) {
+        await _accountsRepo.save(
+          fromAccount.copyWith(
+            balance: fromAccount.balance - amount,
+            clearedBalance: cleared
+                ? fromAccount.clearedBalance - amount
+                : fromAccount.clearedBalance,
+          ),
+        );
+      }
+      if (toAccount != null) {
+        await _accountsRepo.save(
+          toAccount.copyWith(
+            balance: toAccount.balance + amount,
+            clearedBalance: cleared
+                ? toAccount.clearedBalance + amount
+                : toAccount.clearedBalance,
+          ),
+        );
+      }
     });
   }
 
@@ -141,20 +167,54 @@ class TransactionsRepository implements ITransactionsRepository {
     // Fetch before soft-deleting so we know which budget entry to recalculate.
     final row = await _dao.getById(id);
 
+    // For transfers, fetch the partner before the write so we can reverse both
+    // accounts' balances inside the same transaction.
+    TransactionRow? transferPartner;
+    if (row?.transferPairId != null) {
+      transferPartner = await _dao.getTransferPartner(
+        row!.transferPairId!,
+        excludeId: id,
+      );
+    }
+
     // Wrap the soft-delete(s) in a transaction so both legs of a transfer are
     // always deleted together — a crash between the two writes must not leave
     // a ghost row with a dangling transferPairId.
     await _dao.attachedDatabase.transaction(() async {
       await _dao.softDelete(id, updatedAtMs: updatedAtMs);
 
-      // Symmetrically soft-delete the transfer partner when applicable.
-      if (row?.transferPairId != null) {
-        final partner = await _dao.getTransferPartner(
-          row!.transferPairId!,
-          excludeId: id,
-        );
-        if (partner != null) {
-          await _dao.softDelete(partner.id, updatedAtMs: updatedAtMs);
+      if (transferPartner != null) {
+        await _dao.softDelete(transferPartner.id, updatedAtMs: updatedAtMs);
+      }
+
+      // Reverse the stored balance on the deleted row's account.
+      if (row != null) {
+        final account = await _accountsRepo.getById(row.accountId);
+        if (account != null) {
+          await _accountsRepo.save(
+            account.copyWith(
+              balance: account.balance - row.amount,
+              clearedBalance: row.cleared
+                  ? account.clearedBalance - row.amount
+                  : account.clearedBalance,
+            ),
+          );
+        }
+      }
+
+      // Reverse the stored balance on the partner's account.
+      if (transferPartner != null) {
+        final partnerAccount =
+            await _accountsRepo.getById(transferPartner.accountId);
+        if (partnerAccount != null) {
+          await _accountsRepo.save(
+            partnerAccount.copyWith(
+              balance: partnerAccount.balance - transferPartner.amount,
+              clearedBalance: transferPartner.cleared
+                  ? partnerAccount.clearedBalance - transferPartner.amount
+                  : partnerAccount.clearedBalance,
+            ),
+          );
         }
       }
     });

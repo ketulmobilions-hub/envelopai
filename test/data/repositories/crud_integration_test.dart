@@ -21,7 +21,7 @@ void main() {
     db = _openInMemory();
     budget = BudgetRepository(db.budgetEntries, db.transactions);
     accounts = AccountsRepository(db.accounts);
-    transactions = TransactionsRepository(db.transactions, budget);
+    transactions = TransactionsRepository(db.transactions, budget, accounts);
   });
 
   tearDown(() => db.close());

@@ -10,6 +10,8 @@ class MockTransactionsDao extends Mock implements TransactionsDao {}
 
 class MockIBudgetRepository extends Mock implements IBudgetRepository {}
 
+class MockIAccountsRepository extends Mock implements IAccountsRepository {}
+
 final DateTime _date = DateTime.utc(2026, 3, 6);
 final DateTime _updatedAt = DateTime.utc(2026, 3, 6);
 
@@ -57,12 +59,14 @@ void main() {
 
   late MockTransactionsDao dao;
   late MockIBudgetRepository budgetRepo;
+  late MockIAccountsRepository accountsRepo;
   late TransactionsRepository repo;
 
   setUp(() {
     dao = MockTransactionsDao();
     budgetRepo = MockIBudgetRepository();
-    repo = TransactionsRepository(dao, budgetRepo);
+    accountsRepo = MockIAccountsRepository();
+    repo = TransactionsRepository(dao, budgetRepo, accountsRepo);
   });
 
   group('TransactionsRepository', () {

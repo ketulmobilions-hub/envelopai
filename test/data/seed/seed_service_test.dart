@@ -33,7 +33,7 @@ void main() {
     // TransactionsRepository is constructed to satisfy the BudgetRepository
     // dependency; it is not exercised by the seed but its constructor is
     // required for BudgetRepository.
-    final _ = TransactionsRepository(db.transactions, budget);
+    final _ = TransactionsRepository(db.transactions, budget, accounts);
 
     seedService = SeedService(prefs, accounts, categoryGroups, categories);
   });
