@@ -2,9 +2,9 @@ import 'package:envelope/domain/models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Width of each monetary amount column, kept in sync with `_ColumnHeaders` in
-/// `budget_category_list.dart`.
-const _kAmountColumnWidth = 72.0;
+/// Width of each monetary amount column. Shared with `_ColumnHeaders` in
+/// `budget_category_list.dart` which imports this file.
+const kBudgetAmountColumnWidth = 72.0;
 
 /// A single category row in the budget screen.
 ///
@@ -15,6 +15,7 @@ class CategoryRow extends StatelessWidget {
   const CategoryRow({
     required this.category,
     this.entry,
+    this.onBudgetedTap,
     super.key,
   });
 
@@ -22,6 +23,10 @@ class CategoryRow extends StatelessWidget {
 
   /// The budget entry for the current month, or `null` if none exists yet.
   final BudgetEntry? entry;
+
+  /// Called when the user taps the Budgeted cell to enter a new amount.
+  /// When `null` the cell is not interactive.
+  final VoidCallback? onBudgetedTap;
 
   static final _fmt = NumberFormat.currency(symbol: r'$');
 
@@ -49,9 +54,14 @@ class CategoryRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          _AmountCell(
-            label: _fmt.format(budgeted / 100),
-            color: theme.colorScheme.onSurface,
+          GestureDetector(
+            onTap: onBudgetedTap,
+            child: _AmountCell(
+              label: _fmt.format(budgeted / 100),
+              color: onBudgetedTap != null
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface,
+            ),
           ),
           _AmountCell(
             label: _fmt.format(activity / 100),
@@ -82,7 +92,7 @@ class _AmountCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: _kAmountColumnWidth,
+      width: kBudgetAmountColumnWidth,
       child: Text(
         label,
         textAlign: TextAlign.end,

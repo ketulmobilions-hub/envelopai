@@ -20,6 +20,19 @@ abstract interface class IBudgetRepository {
   Future<void> updateAvailable(String id, int available);
   Future<void> deleteById(String id);
 
+  /// Sets [budgeted] for the given category/month/year, creating the entry if
+  /// it does not exist yet, then recalculates
+  /// `available = budgeted − activity`.
+  ///
+  /// Because [watchMonthSummary] is reactive, both the category row and the
+  /// TBB banner update automatically after this call.
+  Future<void> allocate(
+    String categoryId,
+    int month,
+    int year,
+    int budgeted,
+  );
+
   /// Recomputes `activity` (sum of transaction amounts, sign-flipped so
   /// expenses are positive) and `available` (budgeted − activity) for the
   /// given category / month / year, then persists both fields.
