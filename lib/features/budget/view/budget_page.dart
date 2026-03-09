@@ -35,7 +35,10 @@ class _BudgetView extends StatelessWidget {
           BudgetLoaded(:final month, :final year) => (month, year),
           // Default to current month — kept in sync with the initial event
           // dispatched in BudgetPage.
-          _ => (DateTime.now().month, DateTime.now().year),
+          _ => () {
+              final now = DateTime.now();
+              return (now.month, now.year);
+            }(),
         };
 
         return Scaffold(
@@ -58,26 +61,10 @@ class _BudgetView extends StatelessWidget {
               const Center(child: CircularProgressIndicator()),
             BudgetError(:final message) =>
               Center(child: Text('Error: $message')),
-            BudgetLoaded(:final entries, :final tbb) => Column(
+            final BudgetLoaded loaded => Column(
                 children: [
-                  TbbBanner(tbb: tbb),
-                  Expanded(
-                    child: entries.isEmpty
-                        ? const Center(child: Text('No budget entries'))
-                        : ListView.builder(
-                            itemCount: entries.length,
-                            itemBuilder: (context, index) {
-                              final entry = entries[index];
-                              // TODO(3.3): resolve name from categoryId
-                              final dollars =
-                                  (entry.available / 100).toStringAsFixed(2);
-                              return ListTile(
-                                title: Text(entry.categoryId),
-                                trailing: Text('\$$dollars'),
-                              );
-                            },
-                          ),
-                  ),
+                  TbbBanner(tbb: loaded.tbb),
+                  Expanded(child: BudgetCategoryList(state: loaded)),
                 ],
               ),
           },

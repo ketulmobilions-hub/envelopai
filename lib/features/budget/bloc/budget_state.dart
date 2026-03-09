@@ -19,6 +19,8 @@ final class BudgetLoaded extends BudgetState {
   const BudgetLoaded({
     required this.entries,
     required this.tbb,
+    required this.groups,
+    required this.categories,
     required this.month,
     required this.year,
   });
@@ -30,11 +32,17 @@ final class BudgetLoaded extends BudgetState {
   /// over-budgeted.
   final int tbb;
 
+  /// All category groups, sorted by `sortOrder`.
+  final List<CategoryGroup> groups;
+
+  /// All categories across all groups, sorted by `sortOrder` within group.
+  final List<Category> categories;
+
   final int month;
   final int year;
 
   @override
-  List<Object?> get props => [entries, tbb, month, year];
+  List<Object?> get props => [entries, tbb, groups, categories, month, year];
 }
 
 final class BudgetError extends BudgetState {
