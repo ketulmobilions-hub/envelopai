@@ -17,8 +17,9 @@ void main() {
 
     setUp(() {
       mockBudgetRepo = _MockIBudgetRepository();
-      when(() => mockBudgetRepo.watchForMonth(any(), any()))
-          .thenAnswer((_) => Stream.value(<BudgetEntry>[]));
+      when(() => mockBudgetRepo.watchMonthSummary(any(), any())).thenAnswer(
+        (_) => Stream.value((entries: <BudgetEntry>[], tbb: 0)),
+      );
 
       getIt
         ..registerFactory<IBudgetRepository>(() => mockBudgetRepo)

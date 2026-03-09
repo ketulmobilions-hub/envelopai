@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:envelope/data/database/app_database.dart';
 import 'package:envelope/data/database/daos/budget_entries_dao.dart';
@@ -33,6 +35,51 @@ class BudgetRepository implements IBudgetRepository {
   Stream<List<BudgetEntry>> watchForMonth(int month, int year) => _dao
       .watchForMonth(month, year)
       .map((rows) => rows.map(_toModel).toList());
+
+  @override
+  Stream<({List<BudgetEntry> entries, int tbb})> watchMonthSummary(
+    int month,
+    int year,
+  ) {
+    late final StreamController<({List<BudgetEntry> entries, int tbb})>
+        controller;
+    StreamSubscription<List<BudgetEntry>>? entriesSub;
+    StreamSubscription<int>? tbbSub;
+
+    List<BudgetEntry>? latestEntries;
+    int? latestTbb;
+
+    void tryEmit() {
+      final e = latestEntries;
+      final t = latestTbb;
+      if (e != null && t != null) controller.add((entries: e, tbb: t));
+    }
+
+    controller = StreamController(
+      onListen: () {
+        entriesSub = watchForMonth(month, year).listen(
+          (entries) {
+            latestEntries = entries;
+            tryEmit();
+          },
+          onError: controller.addError,
+        );
+        tbbSub = _dao.watchTbbForMonth(month, year).listen(
+          (tbb) {
+            latestTbb = tbb;
+            tryEmit();
+          },
+          onError: controller.addError,
+        );
+      },
+      onCancel: () {
+        unawaited(entriesSub?.cancel());
+        unawaited(tbbSub?.cancel());
+      },
+    );
+
+    return controller.stream;
+  }
 
   @override
   Future<BudgetEntry> getOrCreate(

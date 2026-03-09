@@ -10,8 +10,9 @@ class BudgetPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     return BlocProvider(
-      create: (_) => getIt<BudgetBloc>()
-        ..add(BudgetMonthChanged(month: now.month, year: now.year)),
+      create: (_) =>
+          getIt<BudgetBloc>()
+            ..add(BudgetMonthChanged(month: now.month, year: now.year)),
       child: const _BudgetView(),
     );
   }
@@ -21,9 +22,9 @@ class _BudgetView extends StatelessWidget {
   const _BudgetView();
 
   static void _changeMonth(BuildContext context, int month, int year) {
-    context
-        .read<BudgetBloc>()
-        .add(BudgetMonthChanged(month: month, year: year));
+    context.read<BudgetBloc>().add(
+      BudgetMonthChanged(month: month, year: year),
+    );
   }
 
   @override
@@ -57,21 +58,28 @@ class _BudgetView extends StatelessWidget {
               const Center(child: CircularProgressIndicator()),
             BudgetError(:final message) =>
               Center(child: Text('Error: $message')),
-            BudgetLoaded(:final entries) => entries.isEmpty
-                ? const Center(child: Text('No budget entries'))
-                : ListView.builder(
-                    itemCount: entries.length,
-                    itemBuilder: (context, index) {
-                      final entry = entries[index];
-                      // TODO(3.3): resolve Category.name from categoryId
-                      return ListTile(
-                        title: Text(entry.categoryId),
-                        trailing: Text(
-                          '\$${(entry.available / 100).toStringAsFixed(2)}',
-                        ),
-                      );
-                    },
+            BudgetLoaded(:final entries, :final tbb) => Column(
+                children: [
+                  TbbBanner(tbb: tbb),
+                  Expanded(
+                    child: entries.isEmpty
+                        ? const Center(child: Text('No budget entries'))
+                        : ListView.builder(
+                            itemCount: entries.length,
+                            itemBuilder: (context, index) {
+                              final entry = entries[index];
+                              // TODO(3.3): resolve name from categoryId
+                              final dollars =
+                                  (entry.available / 100).toStringAsFixed(2);
+                              return ListTile(
+                                title: Text(entry.categoryId),
+                                trailing: Text('\$$dollars'),
+                              );
+                            },
+                          ),
                   ),
+                ],
+              ),
           },
         );
       },

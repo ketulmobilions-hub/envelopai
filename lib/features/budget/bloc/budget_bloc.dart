@@ -24,10 +24,11 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
     Emitter<BudgetState> emit,
   ) async {
     emit(const BudgetLoading());
-    await emit.forEach<List<BudgetEntry>>(
-      _budgetRepository.watchForMonth(event.month, event.year),
-      onData: (entries) => BudgetLoaded(
-        entries: entries,
+    await emit.forEach<({List<BudgetEntry> entries, int tbb})>(
+      _budgetRepository.watchMonthSummary(event.month, event.year),
+      onData: (data) => BudgetLoaded(
+        entries: data.entries,
+        tbb: data.tbb,
         month: event.month,
         year: event.year,
       ),
