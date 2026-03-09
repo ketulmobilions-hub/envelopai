@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   /// Increment this whenever the schema changes and add a migration step in
   /// [migration] below.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -74,7 +74,9 @@ class AppDatabase extends _$AppDatabase {
       );
     },
     onUpgrade: (m, from, to) async {
-      // Add migration steps here when schemaVersion is incremented.
+      if (from < 2) {
+        await m.addColumn(accountsTable, accountsTable.lastReconciledAt);
+      }
     },
   );
 

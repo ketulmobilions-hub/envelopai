@@ -1,5 +1,6 @@
 import 'package:envelope/features/accounts/accounts.dart';
 import 'package:envelope/features/budget/budget.dart';
+import 'package:envelope/features/reconcile/reconcile.dart';
 import 'package:envelope/features/transactions/transactions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -57,6 +58,15 @@ final appRouter = GoRouter(
                   builder: (context, state) => AccountDetailScreen(
                     accountId: state.pathParameters[AppRouteParams.id]!,
                   ),
+                  routes: [
+                    GoRoute(
+                      path: _Paths.reconcile,
+                      name: AppRoutes.reconcile,
+                      builder: (context, state) => ReconcileScreen(
+                        accountId: state.pathParameters[AppRouteParams.id]!,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

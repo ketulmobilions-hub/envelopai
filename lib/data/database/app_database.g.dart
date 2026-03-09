@@ -85,6 +85,17 @@ class $AccountsTableTable extends AccountsTable
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _lastReconciledAtMeta = const VerificationMeta(
+    'lastReconciledAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastReconciledAt = GeneratedColumn<int>(
+    'last_reconciled_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -94,6 +105,7 @@ class $AccountsTableTable extends AccountsTable
     clearedBalance,
     currency,
     onBudget,
+    lastReconciledAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -159,6 +171,15 @@ class $AccountsTableTable extends AccountsTable
         onBudget.isAcceptableOrUnknown(data['on_budget']!, _onBudgetMeta),
       );
     }
+    if (data.containsKey('last_reconciled_at')) {
+      context.handle(
+        _lastReconciledAtMeta,
+        lastReconciledAt.isAcceptableOrUnknown(
+          data['last_reconciled_at']!,
+          _lastReconciledAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -196,6 +217,10 @@ class $AccountsTableTable extends AccountsTable
         DriftSqlType.bool,
         data['${effectivePrefix}on_budget'],
       )!,
+      lastReconciledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_reconciled_at'],
+      ),
     );
   }
 
@@ -219,6 +244,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
   final int clearedBalance;
   final String currency;
   final bool onBudget;
+
+  /// Unix milliseconds UTC — set when the account is successfully reconciled.
+  final int? lastReconciledAt;
   const AccountRow({
     required this.id,
     required this.name,
@@ -227,6 +255,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     required this.clearedBalance,
     required this.currency,
     required this.onBudget,
+    this.lastReconciledAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -238,6 +267,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     map['cleared_balance'] = Variable<int>(clearedBalance);
     map['currency'] = Variable<String>(currency);
     map['on_budget'] = Variable<bool>(onBudget);
+    if (!nullToAbsent || lastReconciledAt != null) {
+      map['last_reconciled_at'] = Variable<int>(lastReconciledAt);
+    }
     return map;
   }
 
@@ -250,6 +282,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       clearedBalance: Value(clearedBalance),
       currency: Value(currency),
       onBudget: Value(onBudget),
+      lastReconciledAt: lastReconciledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastReconciledAt),
     );
   }
 
@@ -266,6 +301,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       clearedBalance: serializer.fromJson<int>(json['clearedBalance']),
       currency: serializer.fromJson<String>(json['currency']),
       onBudget: serializer.fromJson<bool>(json['onBudget']),
+      lastReconciledAt: serializer.fromJson<int?>(json['lastReconciledAt']),
     );
   }
   @override
@@ -279,6 +315,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
       'clearedBalance': serializer.toJson<int>(clearedBalance),
       'currency': serializer.toJson<String>(currency),
       'onBudget': serializer.toJson<bool>(onBudget),
+      'lastReconciledAt': serializer.toJson<int?>(lastReconciledAt),
     };
   }
 
@@ -290,6 +327,7 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     int? clearedBalance,
     String? currency,
     bool? onBudget,
+    Value<int?> lastReconciledAt = const Value.absent(),
   }) => AccountRow(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -298,6 +336,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
     clearedBalance: clearedBalance ?? this.clearedBalance,
     currency: currency ?? this.currency,
     onBudget: onBudget ?? this.onBudget,
+    lastReconciledAt: lastReconciledAt.present
+        ? lastReconciledAt.value
+        : this.lastReconciledAt,
   );
   AccountRow copyWithCompanion(AccountsTableCompanion data) {
     return AccountRow(
@@ -310,6 +351,9 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
           : this.clearedBalance,
       currency: data.currency.present ? data.currency.value : this.currency,
       onBudget: data.onBudget.present ? data.onBudget.value : this.onBudget,
+      lastReconciledAt: data.lastReconciledAt.present
+          ? data.lastReconciledAt.value
+          : this.lastReconciledAt,
     );
   }
 
@@ -322,14 +366,23 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
           ..write('balance: $balance, ')
           ..write('clearedBalance: $clearedBalance, ')
           ..write('currency: $currency, ')
-          ..write('onBudget: $onBudget')
+          ..write('onBudget: $onBudget, ')
+          ..write('lastReconciledAt: $lastReconciledAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, type, balance, clearedBalance, currency, onBudget);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    type,
+    balance,
+    clearedBalance,
+    currency,
+    onBudget,
+    lastReconciledAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -340,7 +393,8 @@ class AccountRow extends DataClass implements Insertable<AccountRow> {
           other.balance == this.balance &&
           other.clearedBalance == this.clearedBalance &&
           other.currency == this.currency &&
-          other.onBudget == this.onBudget);
+          other.onBudget == this.onBudget &&
+          other.lastReconciledAt == this.lastReconciledAt);
 }
 
 class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
@@ -351,6 +405,7 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
   final Value<int> clearedBalance;
   final Value<String> currency;
   final Value<bool> onBudget;
+  final Value<int?> lastReconciledAt;
   final Value<int> rowid;
   const AccountsTableCompanion({
     this.id = const Value.absent(),
@@ -360,6 +415,7 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
     this.clearedBalance = const Value.absent(),
     this.currency = const Value.absent(),
     this.onBudget = const Value.absent(),
+    this.lastReconciledAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AccountsTableCompanion.insert({
@@ -370,6 +426,7 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
     required int clearedBalance,
     this.currency = const Value.absent(),
     this.onBudget = const Value.absent(),
+    this.lastReconciledAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -384,6 +441,7 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
     Expression<int>? clearedBalance,
     Expression<String>? currency,
     Expression<bool>? onBudget,
+    Expression<int>? lastReconciledAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -394,6 +452,7 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
       if (clearedBalance != null) 'cleared_balance': clearedBalance,
       if (currency != null) 'currency': currency,
       if (onBudget != null) 'on_budget': onBudget,
+      if (lastReconciledAt != null) 'last_reconciled_at': lastReconciledAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -406,6 +465,7 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
     Value<int>? clearedBalance,
     Value<String>? currency,
     Value<bool>? onBudget,
+    Value<int?>? lastReconciledAt,
     Value<int>? rowid,
   }) {
     return AccountsTableCompanion(
@@ -416,6 +476,7 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
       clearedBalance: clearedBalance ?? this.clearedBalance,
       currency: currency ?? this.currency,
       onBudget: onBudget ?? this.onBudget,
+      lastReconciledAt: lastReconciledAt ?? this.lastReconciledAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -444,6 +505,9 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
     if (onBudget.present) {
       map['on_budget'] = Variable<bool>(onBudget.value);
     }
+    if (lastReconciledAt.present) {
+      map['last_reconciled_at'] = Variable<int>(lastReconciledAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -460,6 +524,7 @@ class AccountsTableCompanion extends UpdateCompanion<AccountRow> {
           ..write('clearedBalance: $clearedBalance, ')
           ..write('currency: $currency, ')
           ..write('onBudget: $onBudget, ')
+          ..write('lastReconciledAt: $lastReconciledAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2795,6 +2860,7 @@ typedef $$AccountsTableTableCreateCompanionBuilder =
       required int clearedBalance,
       Value<String> currency,
       Value<bool> onBudget,
+      Value<int?> lastReconciledAt,
       Value<int> rowid,
     });
 typedef $$AccountsTableTableUpdateCompanionBuilder =
@@ -2806,6 +2872,7 @@ typedef $$AccountsTableTableUpdateCompanionBuilder =
       Value<int> clearedBalance,
       Value<String> currency,
       Value<bool> onBudget,
+      Value<int?> lastReconciledAt,
       Value<int> rowid,
     });
 
@@ -2886,6 +2953,11 @@ class $$AccountsTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get lastReconciledAt => $composableBuilder(
+    column: $table.lastReconciledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> transactionsTableRefs(
     Expression<bool> Function($$TransactionsTableTableFilterComposer f) f,
   ) {
@@ -2955,6 +3027,11 @@ class $$AccountsTableTableOrderingComposer
     column: $table.onBudget,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get lastReconciledAt => $composableBuilder(
+    column: $table.lastReconciledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableTableAnnotationComposer
@@ -2988,6 +3065,11 @@ class $$AccountsTableTableAnnotationComposer
 
   GeneratedColumn<bool> get onBudget =>
       $composableBuilder(column: $table.onBudget, builder: (column) => column);
+
+  GeneratedColumn<int> get lastReconciledAt => $composableBuilder(
+    column: $table.lastReconciledAt,
+    builder: (column) => column,
+  );
 
   Expression<T> transactionsTableRefs<T extends Object>(
     Expression<T> Function($$TransactionsTableTableAnnotationComposer a) f,
@@ -3051,6 +3133,7 @@ class $$AccountsTableTableTableManager
                 Value<int> clearedBalance = const Value.absent(),
                 Value<String> currency = const Value.absent(),
                 Value<bool> onBudget = const Value.absent(),
+                Value<int?> lastReconciledAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsTableCompanion(
                 id: id,
@@ -3060,6 +3143,7 @@ class $$AccountsTableTableTableManager
                 clearedBalance: clearedBalance,
                 currency: currency,
                 onBudget: onBudget,
+                lastReconciledAt: lastReconciledAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3071,6 +3155,7 @@ class $$AccountsTableTableTableManager
                 required int clearedBalance,
                 Value<String> currency = const Value.absent(),
                 Value<bool> onBudget = const Value.absent(),
+                Value<int?> lastReconciledAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AccountsTableCompanion.insert(
                 id: id,
@@ -3080,6 +3165,7 @@ class $$AccountsTableTableTableManager
                 clearedBalance: clearedBalance,
                 currency: currency,
                 onBudget: onBudget,
+                lastReconciledAt: lastReconciledAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

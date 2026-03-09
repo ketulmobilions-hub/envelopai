@@ -6,6 +6,9 @@ abstract interface class ITransactionsRepository {
   Future<Transaction?> getById(String id);
   Stream<List<Transaction>> watchByAccount(String accountId);
 
+  /// Watches all non-deleted, uncleared transactions for an account.
+  Stream<List<Transaction>> watchUnclearedByAccount(String accountId);
+
   /// Inserts a new transaction and recalculates the affected budget entry.
   Future<void> addTransaction(Transaction transaction);
 
@@ -32,6 +35,19 @@ abstract interface class ITransactionsRepository {
 
   /// Soft-deletes a transaction and recalculates the affected budget entry.
   Future<void> deleteTransaction(String id, {required int updatedAtMs});
+
+  /// Atomically reconciles an account:
+  /// - Marks [transactionsToMarkCleared] as cleared.
+  /// - Creates an adjustment transaction if [adjustmentAmountCents] is
+  ///   non-null and non-zero (positive = inflow, negative = outflow).
+  /// - Persists the updated clearedBalance and lastReconciledAt on the
+  ///   account.
+  Future<void> reconcileAccount({
+    required Account account,
+    required List<Transaction> transactionsToMarkCleared,
+    int? adjustmentAmountCents,
+    String? adjustmentCategoryId,
+  });
 
   // Low-level primitives kept for sync layer use.
   Future<void> save(Transaction transaction);

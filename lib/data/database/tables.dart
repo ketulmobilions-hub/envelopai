@@ -22,6 +22,9 @@ class AccountsTable extends Table {
   TextColumn get currency => text().withDefault(const Constant('USD'))();
   BoolColumn get onBudget => boolean().withDefault(const Constant(true))();
 
+  /// Unix milliseconds UTC — set when the account is successfully reconciled.
+  IntColumn get lastReconciledAt => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

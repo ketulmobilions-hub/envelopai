@@ -51,6 +51,9 @@ Account _toModel(AccountRow row) => Account(
   clearedBalance: row.clearedBalance,
   currency: row.currency,
   onBudget: row.onBudget,
+  lastReconciledAt: row.lastReconciledAt != null
+      ? DateTime.fromMillisecondsSinceEpoch(row.lastReconciledAt!, isUtc: true)
+      : null,
 );
 
 AccountsTableCompanion _toCompanion(Account a) => AccountsTableCompanion(
@@ -61,4 +64,5 @@ AccountsTableCompanion _toCompanion(Account a) => AccountsTableCompanion(
   clearedBalance: Value(a.clearedBalance),
   currency: Value(a.currency),
   onBudget: Value(a.onBudget),
+  lastReconciledAt: Value(a.lastReconciledAt?.millisecondsSinceEpoch),
 );

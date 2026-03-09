@@ -36,6 +36,19 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
             ..orderBy([(t) => OrderingTerm.desc(t.date)]))
           .watch();
 
+  /// Watches all non-deleted, uncleared transactions for an account.
+  /// Used by the reconcile screen.
+  Stream<List<TransactionRow>> watchUnclearedByAccount(String accountId) =>
+      (select(transactionsTable)
+            ..where(
+              (t) =>
+                  t.accountId.equals(accountId) &
+                  t.cleared.equals(false) &
+                  t.isDeleted.equals(false),
+            )
+            ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          .watch();
+
   Future<void> upsert(TransactionsTableCompanion companion) =>
       into(transactionsTable).insertOnConflictUpdate(companion);
 

@@ -28,6 +28,7 @@ import 'package:envelope/data/seed/seed_service.dart' as _i1017;
 import 'package:envelope/domain/repositories/repositories.dart' as _i112;
 import 'package:envelope/features/accounts/bloc/accounts_bloc.dart' as _i1028;
 import 'package:envelope/features/budget/bloc/budget_bloc.dart' as _i485;
+import 'package:envelope/features/reconcile/bloc/reconcile_bloc.dart' as _i1014;
 import 'package:envelope/features/transactions/bloc/transaction_form_bloc.dart'
     as _i710;
 import 'package:envelope/features/transactions/bloc/transaction_list_bloc.dart'
@@ -80,12 +81,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i112.ICategoriesRepository>(
       () => _i106.CategoriesRepository(gh<_i261.CategoriesDao>()),
     );
-    gh.lazySingleton<_i112.ITransactionsRepository>(
-      () => _i228.TransactionsRepository(
-        gh<_i268.TransactionsDao>(),
-        gh<_i112.IBudgetRepository>(),
-      ),
-    );
     gh.lazySingleton<_i112.IAccountsRepository>(
       () => _i65.AccountsRepository(gh<_i171.AccountsDao>()),
     );
@@ -98,6 +93,27 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i112.ICategoryGroupsRepository>(),
         gh<_i112.ICategoriesRepository>(),
         gh<_i460.SharedPreferences>(),
+      ),
+    );
+    gh.lazySingleton<_i1017.SeedService>(
+      () => _i1017.SeedService(
+        gh<_i460.SharedPreferences>(),
+        gh<_i112.IAccountsRepository>(),
+        gh<_i112.ICategoryGroupsRepository>(),
+        gh<_i112.ICategoriesRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i112.ITransactionsRepository>(
+      () => _i228.TransactionsRepository(
+        gh<_i268.TransactionsDao>(),
+        gh<_i112.IBudgetRepository>(),
+        gh<_i112.IAccountsRepository>(),
+      ),
+    );
+    gh.factory<_i1014.ReconcileBloc>(
+      () => _i1014.ReconcileBloc(
+        gh<_i112.ITransactionsRepository>(),
+        gh<_i112.IAccountsRepository>(),
       ),
     );
     gh.factory<_i782.TransactionListBloc>(
@@ -113,14 +129,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i112.ICategoryGroupsRepository>(),
         gh<_i112.ICategoriesRepository>(),
         gh<_i112.ITransactionsRepository>(),
-      ),
-    );
-    gh.lazySingleton<_i1017.SeedService>(
-      () => _i1017.SeedService(
-        gh<_i460.SharedPreferences>(),
-        gh<_i112.IAccountsRepository>(),
-        gh<_i112.ICategoryGroupsRepository>(),
-        gh<_i112.ICategoriesRepository>(),
       ),
     );
     return this;

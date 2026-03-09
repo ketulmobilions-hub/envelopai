@@ -37,6 +37,12 @@ class TransactionsRepository implements ITransactionsRepository {
       _dao.watchByAccount(accountId).map((rows) => rows.map(_toModel).toList());
 
   @override
+  Stream<List<Transaction>> watchUnclearedByAccount(String accountId) =>
+      _dao
+          .watchUnclearedByAccount(accountId)
+          .map((rows) => rows.map(_toModel).toList());
+
+  @override
   Future<void> addTransaction(Transaction transaction) async {
     await _dao.upsert(_toCompanion(transaction));
     if (transaction.categoryId != null) {
@@ -225,6 +231,71 @@ class TransactionsRepository implements ITransactionsRepository {
         row.categoryId!,
         date.month,
         date.year,
+      );
+    }
+  }
+
+  @override
+  Future<void> reconcileAccount({
+    required Account account,
+    required List<Transaction> transactionsToMarkCleared,
+    int? adjustmentAmountCents,
+    String? adjustmentCategoryId,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final pendingAmount =
+        transactionsToMarkCleared.fold(0, (sum, t) => sum + t.amount);
+
+    await _dao.attachedDatabase.transaction(() async {
+      // Mark each toggled transaction cleared.
+      for (final tx in transactionsToMarkCleared) {
+        await _dao.upsert(
+          _toCompanion(tx.copyWith(cleared: true, updatedAt: now)),
+        );
+      }
+
+      var newClearedBalance = account.clearedBalance + pendingAmount;
+
+      // Create an adjustment transaction when the user requests one.
+      // Note: account.balance is intentionally not updated here — consistent
+      // with addTransaction, which also does not write back to account.balance.
+      if (adjustmentAmountCents != null && adjustmentAmountCents != 0) {
+        final adjTx = Transaction(
+          id: _uuid.v4(),
+          accountId: account.id,
+          categoryId: adjustmentCategoryId,
+          payee: 'Reconciliation Adjustment',
+          amount: adjustmentAmountCents,
+          date: now,
+          memo: 'Created during account reconciliation',
+          cleared: true,
+          type: adjustmentAmountCents > 0
+              ? TransactionType.income
+              : TransactionType.expense,
+          updatedAt: now,
+          isDeleted: false,
+        );
+        await _dao.upsert(_toCompanion(adjTx));
+        newClearedBalance += adjustmentAmountCents;
+      }
+
+      // Persist updated clearedBalance and reconcile timestamp.
+      await _accountsRepo.save(
+        account.copyWith(
+          clearedBalance: newClearedBalance,
+          lastReconciledAt: now,
+        ),
+      );
+    });
+
+    // Recalculate budget entry for the adjustment transaction if categorised.
+    if (adjustmentAmountCents != null &&
+        adjustmentAmountCents != 0 &&
+        adjustmentCategoryId != null) {
+      await _budgetRepo.recalculateAvailable(
+        adjustmentCategoryId,
+        now.month,
+        now.year,
       );
     }
   }

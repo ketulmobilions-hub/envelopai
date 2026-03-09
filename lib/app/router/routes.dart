@@ -21,6 +21,9 @@ abstract final class AppRoutes {
   // ---- Account detail (nested under accounts) ----
   static const String accountDetail = 'account-detail';
 
+  // ---- Reconcile (nested under account detail) ----
+  static const String reconcile = 'reconcile';
+
   // ---- Transactions ----
   static const String addTransaction = 'add-transaction';
   static const String editTransaction = 'edit-transaction';
@@ -46,6 +49,8 @@ abstract final class _Paths {
   static const String budget = '/';
   static const String accounts = '/accounts';
   static const String accountDetail = ':id'; // relative, nested under accounts
+  // relative, nested under accountDetail
+  static const String reconcile = 'reconcile';
   static const String reports = '/reports';
   static const String addTransaction = '/transactions/add';
   static const String editTransaction = '/transactions/:id/edit';

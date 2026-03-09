@@ -11,6 +11,7 @@ class Account extends Equatable {
     required this.clearedBalance,
     required this.currency,
     required this.onBudget,
+    this.lastReconciledAt,
   });
 
   final String id;
@@ -27,6 +28,13 @@ class Account extends Equatable {
   final String currency;
   final bool onBudget;
 
+  /// UTC timestamp of the last successful reconciliation, or null if never
+  /// reconciled.
+  final DateTime? lastReconciledAt;
+
+  /// Note: passing `null` for [lastReconciledAt] is a no-op (the existing
+  /// value is kept). There is no mechanism to explicitly clear the field
+  /// since that use case does not exist.
   Account copyWith({
     String? id,
     String? name,
@@ -35,6 +43,7 @@ class Account extends Equatable {
     int? clearedBalance,
     String? currency,
     bool? onBudget,
+    DateTime? lastReconciledAt,
   }) {
     return Account(
       id: id ?? this.id,
@@ -44,6 +53,7 @@ class Account extends Equatable {
       clearedBalance: clearedBalance ?? this.clearedBalance,
       currency: currency ?? this.currency,
       onBudget: onBudget ?? this.onBudget,
+      lastReconciledAt: lastReconciledAt ?? this.lastReconciledAt,
     );
   }
 
@@ -56,5 +66,6 @@ class Account extends Equatable {
     clearedBalance,
     currency,
     onBudget,
+    lastReconciledAt,
   ];
 }

@@ -97,7 +97,19 @@ class _AccountDetailLoadedState extends State<_AccountDetailLoaded> {
     final account = state.account;
 
     return Scaffold(
-      appBar: AppBar(title: Text(account.name)),
+      appBar: AppBar(
+        title: Text(account.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.balance),
+            tooltip: 'Reconcile',
+            onPressed: () => context.pushNamed(
+              AppRoutes.reconcile,
+              pathParameters: {AppRouteParams.id: account.id},
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openAddTransaction(context),
         tooltip: 'Add transaction',
