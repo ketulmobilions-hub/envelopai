@@ -75,15 +75,47 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
 
   /// Updates the `available` field in minor currency units.
   /// Called after every transaction mutation that affects this entry.
-  Future<void> updateAvailable(String id, int available) =>
+  /// Returns the number of rows updated (1 on success, 0 if id not found).
+  Future<int> updateAvailable(String id, int available) =>
       (update(budgetEntriesTable)..where((t) => t.id.equals(id))).write(
         BudgetEntriesTableCompanion(available: Value(available)),
       );
 
+  /// Updates `budgeted` and `available` in a single write.
+  /// Called by `setBudgeted` inside a transaction.
+  /// Returns the number of rows updated (1 on success, 0 if id not found).
+  Future<int> updateBudgetedAndAvailable(
+    String id,
+    int budgeted,
+    int available,
+  ) => (update(budgetEntriesTable)..where((t) => t.id.equals(id))).write(
+    BudgetEntriesTableCompanion(
+      budgeted: Value(budgeted),
+      available: Value(available),
+    ),
+  );
+
+  /// Atomically sets [budgeted] for [categoryId]/[month]/[year], creating the
+  /// entry if needed, then recalculates `available = budgeted − activity`.
+  ///
+  /// Wrapped in a transaction to prevent the TOCTOU race between the read of
+  /// `activity` (inside [getOrCreate]) and the subsequent write.
+  Future<void> setBudgeted(
+    String categoryId,
+    int month,
+    int year,
+    int budgeted,
+  ) => transaction(() async {
+    final entry = await getOrCreate(categoryId, month, year);
+    final available = budgeted - entry.activity;
+    await updateBudgetedAndAvailable(entry.id, budgeted, available);
+  });
+
   /// Updates both `activity` and `available` in a single write.
   /// Called by `BudgetRepository.recalculateAvailable` after every transaction
   /// mutation.
-  Future<void> updateActivityAndAvailable(
+  /// Returns the number of rows updated (1 on success, 0 if id not found).
+  Future<int> updateActivityAndAvailable(
     String id,
     int activity,
     int available,

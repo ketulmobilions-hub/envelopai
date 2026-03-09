@@ -203,5 +203,39 @@ void main() {
         verify(() => categoriesRepo.watchAll()).called(2);
       },
     );
+
+    blocTest<BudgetBloc, BudgetState>(
+      'BudgetEntryAllocated calls repository.allocate with correct args',
+      build: () {
+        stubAll();
+        when(
+          () => budgetRepo.allocate('c1', 3, 2026, 20000),
+        ).thenAnswer((_) async {});
+        return buildBloc();
+      },
+      act: (bloc) async {
+        bloc.add(const BudgetMonthChanged(month: 3, year: 2026));
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(
+          const BudgetEntryAllocated(
+            categoryId: 'c1',
+            month: 3,
+            year: 2026,
+            budgeted: 20000,
+          ),
+        );
+      },
+      // No extra state emitted — stream re-emits automatically.
+      expect: () => [
+        const BudgetLoading(),
+        isA<BudgetLoaded>(),
+      ],
+      verify: (_) {
+        verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
+        verify(() => groupsRepo.watchAll()).called(1);
+        verify(() => categoriesRepo.watchAll()).called(1);
+        verify(() => budgetRepo.allocate('c1', 3, 2026, 20000)).called(1);
+      },
+    );
   });
 }

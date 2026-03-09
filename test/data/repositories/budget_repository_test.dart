@@ -110,7 +110,7 @@ void main() {
     });
 
     test('updateAvailable delegates to DAO', () async {
-      when(() => dao.updateAvailable(any(), any())).thenAnswer((_) async {});
+      when(() => dao.updateAvailable(any(), any())).thenAnswer((_) async => 1);
 
       await repo.updateAvailable('be1', 40000);
 

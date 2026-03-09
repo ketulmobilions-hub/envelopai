@@ -1,12 +1,11 @@
 import 'package:envelope/domain/models/models.dart';
 import 'package:envelope/features/budget/bloc/budget_bloc.dart';
+import 'package:envelope/features/budget/widgets/allocation_sheet.dart';
 import 'package:envelope/features/budget/widgets/category_group_header.dart';
 import 'package:envelope/features/budget/widgets/category_row.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Width of each monetary amount column, kept in sync with `_AmountCell` in
-/// `category_row.dart`.
-const _kAmountColumnWidth = 72.0;
 
 /// Scrollable category list for the budget screen.
 ///
@@ -110,11 +109,39 @@ class _BudgetCategoryListState extends State<BudgetCategoryList> {
   Widget _buildCategorySliver(List<Category> cats) {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
-        (context, index) => CategoryRow(
-          category: cats[index],
-          entry: _entryByCategory[cats[index].id],
-        ),
+        (context, index) {
+          final cat = cats[index];
+          return CategoryRow(
+            category: cat,
+            entry: _entryByCategory[cat.id],
+            onBudgetedTap: () => _showAllocationSheet(context, cat),
+          );
+        },
         childCount: cats.length,
+      ),
+    );
+  }
+
+  Future<void> _showAllocationSheet(
+    BuildContext context,
+    Category category,
+  ) async {
+    final currentBudgeted = _entryByCategory[category.id]?.budgeted ?? 0;
+    final newBudgeted = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => AllocationSheet(
+        category: category,
+        currentBudgeted: currentBudgeted,
+      ),
+    );
+    if (newBudgeted == null || !context.mounted) return;
+    context.read<BudgetBloc>().add(
+      BudgetEntryAllocated(
+        categoryId: category.id,
+        month: widget.state.month,
+        year: widget.state.year,
+        budgeted: newBudgeted,
       ),
     );
   }
@@ -138,15 +165,15 @@ class _ColumnHeaders extends StatelessWidget {
           children: [
             const Expanded(flex: 3, child: SizedBox.shrink()),
             SizedBox(
-              width: _kAmountColumnWidth,
+              width: kBudgetAmountColumnWidth,
               child: Text('Budgeted', textAlign: TextAlign.end, style: style),
             ),
             SizedBox(
-              width: _kAmountColumnWidth,
+              width: kBudgetAmountColumnWidth,
               child: Text('Spent', textAlign: TextAlign.end, style: style),
             ),
             SizedBox(
-              width: _kAmountColumnWidth,
+              width: kBudgetAmountColumnWidth,
               child: Text('Available', textAlign: TextAlign.end, style: style),
             ),
           ],

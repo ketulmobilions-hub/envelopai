@@ -101,6 +101,14 @@ class BudgetRepository implements IBudgetRepository {
   @override
   Future<void> deleteById(String id) => _dao.deleteById(id);
 
+  @override
+  Future<void> allocate(
+    String categoryId,
+    int month,
+    int year,
+    int budgeted,
+  ) => _dao.setBudgeted(categoryId, month, year, budgeted);
+
   /// Recomputes `activity` and `available` from the live transaction sum.
   ///
   /// `activity = -sum(amounts)`: expenses have negative amounts, so flipping

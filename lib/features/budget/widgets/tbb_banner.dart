@@ -13,6 +13,8 @@ class TbbBanner extends StatelessWidget {
   /// Amount in minor currency units (e.g. cents).
   final int tbb;
 
+  static final _fmt = NumberFormat.currency(symbol: r'$');
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -33,8 +35,7 @@ class TbbBanner extends StatelessWidget {
     }
 
     final textColor = theme.colorScheme.onSurface;
-    final amountText =
-        NumberFormat.currency(symbol: r'$').format(tbb / 100);
+    final amountText = _fmt.format(tbb / 100);
 
     return ColoredBox(
       color: bgColor,

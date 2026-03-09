@@ -21,6 +21,10 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
       _onMonthChanged,
       transformer: restartable(),
     );
+    on<BudgetEntryAllocated>(
+      _onEntryAllocated,
+      transformer: sequential(),
+    );
   }
 
   final IBudgetRepository _budgetRepository;
@@ -54,11 +58,37 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
       onError: (error, _) => BudgetError(message: error.toString()),
     );
   }
+
+  Future<void> _onEntryAllocated(
+    BudgetEntryAllocated event,
+    Emitter<BudgetState> emit,
+  ) async {
+    // Guard against stale events that arrive after the user navigated to a
+    // different month (e.g. rapid month switching + slow network).
+    final current = state;
+    if (current is BudgetLoaded &&
+        (current.month != event.month || current.year != event.year)) {
+      return;
+    }
+    await _budgetRepository.allocate(
+      event.categoryId,
+      event.month,
+      event.year,
+      event.budgeted,
+    );
+    // No emit needed — the active watchMonthSummary stream re-emits
+    // automatically whenever the budget_entries table changes.
+  }
 }
 
 /// Combines three streams, emitting a new record whenever any one updates,
 /// using the latest value from each. Waits until all three have emitted at
 /// least once before producing the first output.
+///
+/// Pause/resume signals from the returned stream are intentionally not
+/// forwarded to the inner subscriptions. This is safe here because
+/// [Emitter.forEach] in flutter_bloc never pauses the stream it listens to —
+/// it only cancels on restartable event replacement or bloc close.
 Stream<
     ({
       A summary,
