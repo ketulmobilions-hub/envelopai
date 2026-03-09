@@ -26,10 +26,12 @@ import 'package:envelope/data/repositories/transactions_repository.dart'
     as _i228;
 import 'package:envelope/data/seed/seed_service.dart' as _i1017;
 import 'package:envelope/domain/repositories/repositories.dart' as _i112;
-import 'package:envelope/features/accounts/bloc/accounts_bloc.dart' as _i847;
+import 'package:envelope/features/accounts/bloc/accounts_bloc.dart' as _i1028;
 import 'package:envelope/features/budget/bloc/budget_bloc.dart' as _i485;
 import 'package:envelope/features/transactions/bloc/transaction_form_bloc.dart'
-    as _i733;
+    as _i710;
+import 'package:envelope/features/transactions/bloc/transaction_list_bloc.dart'
+    as _i782;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
@@ -87,16 +89,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i112.IAccountsRepository>(
       () => _i65.AccountsRepository(gh<_i171.AccountsDao>()),
     );
-    gh.factory<_i847.AccountsBloc>(
-      () => _i847.AccountsBloc(gh<_i112.IAccountsRepository>()),
-    );
-    gh.factory<_i733.TransactionFormBloc>(
-      () => _i733.TransactionFormBloc(
-        gh<_i112.IAccountsRepository>(),
-        gh<_i112.ICategoryGroupsRepository>(),
-        gh<_i112.ICategoriesRepository>(),
-        gh<_i112.ITransactionsRepository>(),
-      ),
+    gh.factory<_i1028.AccountsBloc>(
+      () => _i1028.AccountsBloc(gh<_i112.IAccountsRepository>()),
     );
     gh.factory<_i485.BudgetBloc>(
       () => _i485.BudgetBloc(
@@ -104,6 +98,21 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i112.ICategoryGroupsRepository>(),
         gh<_i112.ICategoriesRepository>(),
         gh<_i460.SharedPreferences>(),
+      ),
+    );
+    gh.factory<_i782.TransactionListBloc>(
+      () => _i782.TransactionListBloc(
+        gh<_i112.ITransactionsRepository>(),
+        gh<_i112.IAccountsRepository>(),
+        gh<_i112.ICategoriesRepository>(),
+      ),
+    );
+    gh.factory<_i710.TransactionFormBloc>(
+      () => _i710.TransactionFormBloc(
+        gh<_i112.IAccountsRepository>(),
+        gh<_i112.ICategoryGroupsRepository>(),
+        gh<_i112.ICategoriesRepository>(),
+        gh<_i112.ITransactionsRepository>(),
       ),
     );
     gh.lazySingleton<_i1017.SeedService>(

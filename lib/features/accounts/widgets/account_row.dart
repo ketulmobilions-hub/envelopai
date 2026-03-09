@@ -1,5 +1,7 @@
+import 'package:envelope/app/router/app_router.dart';
 import 'package:envelope/domain/models/models.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 /// Column widths shared between [AccountRow] and [AccountColumnHeader].
@@ -82,7 +84,10 @@ class AccountRow extends StatelessWidget {
         );
 
     return InkWell(
-      onTap: () {}, // placeholder — account detail in issue 4.3
+      onTap: () => context.goNamed(
+        AppRoutes.accountDetail,
+        pathParameters: {AppRouteParams.id: account.id},
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(

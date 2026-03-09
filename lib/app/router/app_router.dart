@@ -54,9 +54,8 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: _Paths.accountDetail,
                   name: AppRoutes.accountDetail,
-                  builder: (context, state) => _PlaceholderScreen(
-                    title:
-                        'Account: ${state.pathParameters[AppRouteParams.id]}',
+                  builder: (context, state) => AccountDetailScreen(
+                    accountId: state.pathParameters[AppRouteParams.id]!,
                   ),
                 ),
               ],
