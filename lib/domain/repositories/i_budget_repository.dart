@@ -53,4 +53,14 @@ abstract interface class IBudgetRepository {
     int month,
     int year,
   );
+
+  /// Applies negative-available rollover from [month]/[year] to the next month.
+  ///
+  /// For each category overspent in [month]/[year], subtracts the shortfall
+  /// from `budgeted` in the following month (which may result in a negative
+  /// `budgeted` — see `BudgetEntriesDao.rolloverMonth` for details). Should be
+  /// called at most once per month transition. The idempotency guard is
+  /// implemented in `BudgetBloc._applyRolloverIfNeeded` via
+  /// `SharedPreferences`.
+  Future<void> rolloverMonth(int month, int year);
 }

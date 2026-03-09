@@ -11,14 +11,15 @@ void main() {
     const catB = Category(id: 'c2', groupId: 'g1', name: 'Food', sortOrder: 1);
     const cats = [catA, catB];
     // Rent: $100 (10000 cents), Food: $80 (8000 cents).
-    const budgeted = {'c1': 10000, 'c2': 8000};
+    // Rent: $100 available (10000 cents), Food: $80 available (8000 cents).
+    const available = {'c1': 10000, 'c2': 8000};
 
     testWidgets('shows message when fewer than two categories', (tester) async {
       await tester.pumpWidget(
         _wrap(
           const MoveMoneySheet(
             categories: [catA],
-            budgetedByCategoryId: budgeted,
+            availableByCategoryId: available,
           ),
         ),
       );
@@ -34,7 +35,7 @@ void main() {
         _wrap(
           const MoveMoneySheet(
             categories: cats,
-            budgetedByCategoryId: budgeted,
+            availableByCategoryId: available,
           ),
         ),
       );
@@ -47,7 +48,7 @@ void main() {
         _wrap(
           const MoveMoneySheet(
             categories: cats,
-            budgetedByCategoryId: budgeted,
+            availableByCategoryId: available,
           ),
         ),
       );
@@ -63,7 +64,7 @@ void main() {
         _wrap(
           const MoveMoneySheet(
             categories: cats,
-            budgetedByCategoryId: budgeted,
+            availableByCategoryId: available,
           ),
         ),
       );
@@ -85,7 +86,7 @@ void main() {
                   isScrollControlled: true,
                   builder: (_) => const MoveMoneySheet(
                     categories: cats,
-                    budgetedByCategoryId: budgeted,
+                    availableByCategoryId: available,
                   ),
                 );
               },
@@ -138,7 +139,7 @@ void main() {
                   builder: (_) => const MoveMoneySheet(
                     categories: cats,
                     // Rent (c1) has $100 budgeted.
-                    budgetedByCategoryId: budgeted,
+                    availableByCategoryId: available,
                   ),
                 );
               },
@@ -174,12 +175,12 @@ void main() {
 
       // Error must mention the formatted cap ($100.00).
       expect(find.textContaining(r'$100.00'), findsOneWidget);
-      expect(find.textContaining('budgeted in this category'), findsOneWidget);
+      expect(find.textContaining('available in this category'), findsOneWidget);
     });
 
     testWidgets(
         'shows error when from category has no budgeted amount '
-        '(budgetedByCategoryId fallback to 0)', (tester) async {
+        '(availableByCategoryId fallback to 0)', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Builder(
@@ -191,7 +192,7 @@ void main() {
                   builder: (_) => const MoveMoneySheet(
                     categories: cats,
                     // Empty map — covers the `?? 0` fallback path.
-                    budgetedByCategoryId: {},
+                    availableByCategoryId: {},
                   ),
                 );
               },
@@ -218,7 +219,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('No positive amount is budgeted in this category'),
+        find.text('No funds available to move in this category'),
         findsOneWidget,
       );
     });
@@ -237,7 +238,7 @@ void main() {
                   isScrollControlled: true,
                   builder: (_) => const MoveMoneySheet(
                     categories: cats,
-                    budgetedByCategoryId: budgeted,
+                    availableByCategoryId: available,
                   ),
                 );
               },

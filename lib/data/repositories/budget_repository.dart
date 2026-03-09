@@ -118,6 +118,10 @@ class BudgetRepository implements IBudgetRepository {
     int amount,
   ) => _dao.moveMoney(fromCategoryId, toCategoryId, month, year, amount);
 
+  @override
+  Future<void> rolloverMonth(int month, int year) =>
+      _dao.rolloverMonth(month, year);
+
   /// Recomputes `activity` and `available` from the live transaction sum.
   ///
   /// `activity = -sum(amounts)`: expenses have negative amounts, so flipping

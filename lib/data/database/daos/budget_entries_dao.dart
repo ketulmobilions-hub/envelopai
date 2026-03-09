@@ -141,6 +141,11 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
   ///
   /// Both entries are created if they do not exist yet. `available` is
   /// recalculated for each entry as `budgeted − activity`.
+  ///
+  /// If the source entry carries rollover debt (`budgeted < 0`), the move
+  /// will decrement `budgeted` further below zero. This is intentional —
+  /// the user is deepening their rollover debt, consistent with the
+  /// convention established by [rolloverMonth].
   Future<void> moveMoney(
     String fromCategoryId,
     String toCategoryId,
@@ -150,9 +155,11 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
   ) => transaction(() async {
     final from = await _getOrCreateInTx(fromCategoryId, month, year);
     final to = await _getOrCreateInTx(toCategoryId, month, year);
-    if (amount > from.budgeted) {
+    // Cap against `available` (not `budgeted`) so that post-rollover entries
+    // with negative `budgeted` do not block all moves.
+    if (amount > from.available) {
       throw Exception(
-        'Cannot move \$$amount — only \$${from.budgeted} budgeted in '
+        'Cannot move \$$amount — only \$${from.available} available in '
         'category $fromCategoryId.',
       );
     }
@@ -169,6 +176,52 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
       newToBudgeted - to.activity,
     );
   });
+
+  /// Applies negative-available rollover from [fromMonth]/[fromYear] to the
+  /// following month.
+  ///
+  /// For each category whose `available < 0`, the absolute shortfall is
+  /// subtracted from `budgeted` in the next month entry (creating the entry if
+  /// it does not exist yet), and `available` is recalculated as
+  /// `budgeted − activity`. Categories with non-negative available are
+  /// unaffected.
+  ///
+  /// **Negative `budgeted` is intentional** — it represents carried rollover
+  /// debt. A category that was overspent by $10 last month will have
+  /// `budgeted = -1000` in the next month until the user manually allocates
+  /// funds to cover it.
+  ///
+  /// All reads and writes run inside a single transaction. Callers must ensure
+  /// this is invoked at most once per month transition (e.g. via a
+  /// `SharedPreferences` guard in the Bloc layer) because there is no
+  /// idempotency marker on the entries themselves.
+  Future<void> rolloverMonth(int fromMonth, int fromYear) =>
+      transaction(() async {
+        final toMonth = fromMonth == 12 ? 1 : fromMonth + 1;
+        final toYear = fromMonth == 12 ? fromYear + 1 : fromYear;
+
+        final overspent = await (select(budgetEntriesTable)
+              ..where(
+                (t) =>
+                    t.month.equals(fromMonth) &
+                    t.year.equals(fromYear) &
+                    t.available.isSmallerThanValue(0),
+              ))
+            .get();
+
+        for (final entry in overspent) {
+          // available is negative — deduction is the positive shortfall.
+          final deduction = -entry.available;
+          final next =
+              await _getOrCreateInTx(entry.categoryId, toMonth, toYear);
+          final newBudgeted = next.budgeted - deduction;
+          await updateBudgetedAndAvailable(
+            next.id,
+            newBudgeted,
+            newBudgeted - next.activity,
+          );
+        }
+      });
 
   Future<int> deleteById(String id) =>
       (delete(budgetEntriesTable)..where((t) => t.id.equals(id))).go();

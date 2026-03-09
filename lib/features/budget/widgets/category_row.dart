@@ -11,6 +11,8 @@ const kBudgetAmountColumnWidth = 72.0;
 /// Displays the category name alongside its budgeted, spent (activity), and
 /// available amounts for the current month. Available is colour-coded:
 /// green (>= 0) or red (< 0 / overspent).
+///
+/// Overspent rows also render a red left border as an additional visual cue.
 class CategoryRow extends StatelessWidget {
   const CategoryRow({
     required this.category,
@@ -38,11 +40,12 @@ class CategoryRow extends StatelessWidget {
     final activity = entry?.activity ?? 0;
     final available = entry?.available ?? 0;
 
-    final availableColor = available < 0
+    final isOverspent = available < 0;
+    final availableColor = isOverspent
         ? theme.colorScheme.error
         : theme.colorScheme.primary;
 
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
@@ -74,6 +77,17 @@ class CategoryRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (!isOverspent) return row;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: theme.colorScheme.error, width: 3),
+        ),
+      ),
+      child: row,
     );
   }
 }

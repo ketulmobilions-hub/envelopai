@@ -53,7 +53,7 @@ final class BudgetMoneyMoved extends BudgetEvent {
     required this.month,
     required this.year,
     required this.amount,
-  });
+  }) : assert(amount > 0, 'BudgetMoneyMoved.amount must be positive');
 
   final String fromCategoryId;
   final String toCategoryId;

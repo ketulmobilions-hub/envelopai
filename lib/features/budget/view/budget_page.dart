@@ -41,8 +41,8 @@ class _BudgetView extends StatelessWidget {
         // if stream updates occur while the sheet is displayed.
         // categoryId is unique per month/year (DB constraint), so the
         // map spread never silently overwrites an entry.
-        budgetedByCategoryId: {
-          for (final e in state.entries) e.categoryId: e.budgeted,
+        availableByCategoryId: {
+          for (final e in state.entries) e.categoryId: e.available,
         },
       ),
     );
