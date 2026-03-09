@@ -1,4 +1,5 @@
 import 'package:envelope/features/budget/budget.dart';
+import 'package:envelope/features/budget/widgets/move_money_sheet.dart';
 import 'package:envelope/injection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,6 +25,27 @@ class _BudgetView extends StatelessWidget {
   static void _changeMonth(BuildContext context, int month, int year) {
     context.read<BudgetBloc>().add(
       BudgetMonthChanged(month: month, year: year),
+    );
+  }
+
+  static Future<void> _showMoveMoneySheet(
+    BuildContext context,
+    BudgetLoaded state,
+  ) async {
+    final result = await showModalBottomSheet<MoveMoneyResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => MoveMoneySheet(categories: state.categories),
+    );
+    if (result == null || !context.mounted) return;
+    context.read<BudgetBloc>().add(
+      BudgetMoneyMoved(
+        fromCategoryId: result.fromCategoryId,
+        toCategoryId: result.toCategoryId,
+        month: state.month,
+        year: state.year,
+        amount: result.amount,
+      ),
     );
   }
 
@@ -56,6 +78,14 @@ class _BudgetView extends StatelessWidget {
               },
             ),
           ),
+          floatingActionButton: switch (state) {
+            final BudgetLoaded s => FloatingActionButton.extended(
+                onPressed: () => _showMoveMoneySheet(context, s),
+                icon: const Icon(Icons.swap_horiz),
+                label: const Text('Move Money'),
+              ),
+            _ => null,
+          },
           body: switch (state) {
             BudgetInitial() || BudgetLoading() =>
               const Center(child: CircularProgressIndicator()),

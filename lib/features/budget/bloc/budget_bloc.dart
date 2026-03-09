@@ -25,6 +25,10 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
       _onEntryAllocated,
       transformer: sequential(),
     );
+    on<BudgetMoneyMoved>(
+      _onMoneyMoved,
+      transformer: sequential(),
+    );
   }
 
   final IBudgetRepository _budgetRepository;
@@ -78,6 +82,27 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
     );
     // No emit needed — the active watchMonthSummary stream re-emits
     // automatically whenever the budget_entries table changes.
+  }
+
+  Future<void> _onMoneyMoved(
+    BudgetMoneyMoved event,
+    Emitter<BudgetState> emit,
+  ) async {
+    final current = state;
+    if (current is! BudgetLoaded) return;
+    if (current.month != event.month || current.year != event.year) return;
+    try {
+      await _budgetRepository.moveMoney(
+        event.fromCategoryId,
+        event.toCategoryId,
+        event.month,
+        event.year,
+        event.amount,
+      );
+      // No emit needed — reactive streams update automatically.
+    } on Exception catch (e) {
+      emit(BudgetError(message: e.toString()));
+    }
   }
 }
 

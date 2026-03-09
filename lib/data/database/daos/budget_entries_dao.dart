@@ -42,12 +42,22 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
   /// Returns the existing entry for [categoryId]/[month]/[year] or inserts
   /// a default one (budgeted: 0, activity: 0, available: 0).
   ///
-  /// Wrapped in a transaction to avoid TOCTOU races.
+  /// Wrapped in a transaction to avoid TOCTOU races. Callers that already
+  /// supply an outer transaction should use [_getOrCreateInTx] instead to
+  /// avoid unnecessary savepoints.
   Future<BudgetEntryRow> getOrCreate(
     String categoryId,
     int month,
     int year,
-  ) => transaction(() async {
+  ) => transaction(() => _getOrCreateInTx(categoryId, month, year));
+
+  /// Core get-or-create logic with no transaction wrapper.
+  /// Must only be called from within an existing transaction.
+  Future<BudgetEntryRow> _getOrCreateInTx(
+    String categoryId,
+    int month,
+    int year,
+  ) async {
     final existing =
         await (select(budgetEntriesTable)..where(
               (t) =>
@@ -68,7 +78,7 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
       ),
       mode: InsertMode.insertOrIgnore,
     );
-  });
+  }
 
   Future<void> upsert(BudgetEntriesTableCompanion companion) =>
       into(budgetEntriesTable).insertOnConflictUpdate(companion);
@@ -106,7 +116,7 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
     int year,
     int budgeted,
   ) => transaction(() async {
-    final entry = await getOrCreate(categoryId, month, year);
+    final entry = await _getOrCreateInTx(categoryId, month, year);
     final available = budgeted - entry.activity;
     await updateBudgetedAndAvailable(entry.id, budgeted, available);
   });
@@ -125,6 +135,40 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
       available: Value(available),
     ),
   );
+
+  /// Atomically transfers [amount] of budget from [fromCategoryId] to
+  /// [toCategoryId] for the given [month]/[year].
+  ///
+  /// Both entries are created if they do not exist yet. `available` is
+  /// recalculated for each entry as `budgeted − activity`.
+  Future<void> moveMoney(
+    String fromCategoryId,
+    String toCategoryId,
+    int month,
+    int year,
+    int amount,
+  ) => transaction(() async {
+    final from = await _getOrCreateInTx(fromCategoryId, month, year);
+    final to = await _getOrCreateInTx(toCategoryId, month, year);
+    if (amount > from.budgeted) {
+      throw Exception(
+        'Cannot move \$$amount — only \$${from.budgeted} budgeted in '
+        'category $fromCategoryId.',
+      );
+    }
+    final newFromBudgeted = from.budgeted - amount;
+    final newToBudgeted = to.budgeted + amount;
+    await updateBudgetedAndAvailable(
+      from.id,
+      newFromBudgeted,
+      newFromBudgeted - from.activity,
+    );
+    await updateBudgetedAndAvailable(
+      to.id,
+      newToBudgeted,
+      newToBudgeted - to.activity,
+    );
+  });
 
   Future<int> deleteById(String id) =>
       (delete(budgetEntriesTable)..where((t) => t.id.equals(id))).go();

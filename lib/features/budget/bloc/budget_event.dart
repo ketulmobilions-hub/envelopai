@@ -41,3 +41,29 @@ final class BudgetEntryAllocated extends BudgetEvent {
   @override
   List<Object?> get props => [categoryId, month, year, budgeted];
 }
+
+/// Emitted when the user moves budget from one category to another.
+///
+/// [amount] is in minor currency units (cents) and must be > 0. The bloc
+/// writes both changes atomically; the reactive stream re-emits automatically.
+final class BudgetMoneyMoved extends BudgetEvent {
+  const BudgetMoneyMoved({
+    required this.fromCategoryId,
+    required this.toCategoryId,
+    required this.month,
+    required this.year,
+    required this.amount,
+  });
+
+  final String fromCategoryId;
+  final String toCategoryId;
+  final int month;
+  final int year;
+
+  /// Amount to transfer in minor currency units.
+  final int amount;
+
+  @override
+  List<Object?> get props =>
+      [fromCategoryId, toCategoryId, month, year, amount];
+}
