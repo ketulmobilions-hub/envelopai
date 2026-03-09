@@ -33,6 +33,16 @@ abstract interface class IBudgetRepository {
     int budgeted,
   );
 
+  /// Atomically transfers [amount] of budget from [fromCategoryId] to
+  /// [toCategoryId] for [month]/[year], updating `available` for both.
+  Future<void> moveMoney(
+    String fromCategoryId,
+    String toCategoryId,
+    int month,
+    int year,
+    int amount,
+  );
+
   /// Recomputes `activity` (sum of transaction amounts, sign-flipped so
   /// expenses are positive) and `available` (budgeted − activity) for the
   /// given category / month / year, then persists both fields.

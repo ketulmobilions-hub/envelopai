@@ -237,5 +237,73 @@ void main() {
         verify(() => budgetRepo.allocate('c1', 3, 2026, 20000)).called(1);
       },
     );
+
+    blocTest<BudgetBloc, BudgetState>(
+      'BudgetMoneyMoved calls repository.moveMoney with correct args',
+      build: () {
+        stubAll();
+        when(
+          () => budgetRepo.moveMoney('c1', 'c2', 3, 2026, 10000),
+        ).thenAnswer((_) async {});
+        return buildBloc();
+      },
+      act: (bloc) async {
+        bloc.add(const BudgetMonthChanged(month: 3, year: 2026));
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(
+          const BudgetMoneyMoved(
+            fromCategoryId: 'c1',
+            toCategoryId: 'c2',
+            month: 3,
+            year: 2026,
+            amount: 10000,
+          ),
+        );
+      },
+      // No extra state emitted — stream re-emits automatically.
+      expect: () => [
+        const BudgetLoading(),
+        isA<BudgetLoaded>(),
+      ],
+      verify: (_) {
+        verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
+        verify(() => groupsRepo.watchAll()).called(1);
+        verify(() => categoriesRepo.watchAll()).called(1);
+        verify(() => budgetRepo.moveMoney('c1', 'c2', 3, 2026, 10000))
+            .called(1);
+      },
+    );
+
+    blocTest<BudgetBloc, BudgetState>(
+      'BudgetMoneyMoved is ignored when month/year does not match current state',
+      build: () {
+        stubAll();
+        return buildBloc();
+      },
+      act: (bloc) async {
+        bloc.add(const BudgetMonthChanged(month: 3, year: 2026));
+        await Future<void>.delayed(Duration.zero);
+        // Stale event — different month.
+        bloc.add(
+          const BudgetMoneyMoved(
+            fromCategoryId: 'c1',
+            toCategoryId: 'c2',
+            month: 4,
+            year: 2026,
+            amount: 5000,
+          ),
+        );
+      },
+      expect: () => [const BudgetLoading(), isA<BudgetLoaded>()],
+      verify: (_) {
+        verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
+        verify(() => groupsRepo.watchAll()).called(1);
+        verify(() => categoriesRepo.watchAll()).called(1);
+        // moveMoney must NOT be called for the stale event.
+        verifyNever(
+          () => budgetRepo.moveMoney(any(), any(), any(), any(), any()),
+        );
+      },
+    );
   });
 }
