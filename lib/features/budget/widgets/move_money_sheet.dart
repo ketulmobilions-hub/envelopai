@@ -1,5 +1,6 @@
 import 'package:envelope/domain/models/models.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 /// Result returned by [MoveMoneySheet] on successful save.
 typedef MoveMoneyResult = ({
@@ -15,17 +16,30 @@ typedef MoveMoneyResult = ({
 ///
 /// Requires at least two categories — renders a disabled form with an
 /// explanatory message when [categories] has fewer than two entries.
+///
+/// [budgetedByCategoryId] maps each category id to its currently budgeted
+/// amount in minor currency units. Used to prevent the user from moving
+/// more than what is budgeted in the selected "from" category.
 class MoveMoneySheet extends StatefulWidget {
-  const MoveMoneySheet({required this.categories, super.key});
+  const MoveMoneySheet({
+    required this.categories,
+    required this.budgetedByCategoryId,
+    super.key,
+  });
 
   /// All visible categories available as transfer source or destination.
   final List<Category> categories;
+
+  /// Budgeted amount (minor currency units) keyed by category id.
+  final Map<String, int> budgetedByCategoryId;
 
   @override
   State<MoveMoneySheet> createState() => _MoveMoneySheetState();
 }
 
 class _MoveMoneySheetState extends State<MoveMoneySheet> {
+  static final _fmt = NumberFormat.currency(symbol: r'$');
+
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
 
@@ -62,6 +76,21 @@ class _MoveMoneySheetState extends State<MoveMoneySheet> {
     ));
   }
 
+  String? _validateAmount(String? v) {
+    final parsed = _parseAmount(v);
+    if (parsed == null) return 'Enter a positive amount';
+    final fromId = _fromId;
+    // Require a From category before validating the cap so the user gets a
+    // clear error rather than a silent pass.
+    if (fromId == null) return 'Select a from category first';
+    final maxCents = widget.budgetedByCategoryId[fromId] ?? 0;
+    if (maxCents <= 0) return 'No positive amount is budgeted in this category';
+    if ((parsed * 100).round() > maxCents) {
+      return 'Only ${_fmt.format(maxCents / 100)} budgeted in this category';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -72,7 +101,7 @@ class _MoveMoneySheetState extends State<MoveMoneySheet> {
         left: 16,
         right: 16,
         top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + 24,
       ),
       child: hasEnoughCategories ? _buildForm(theme) : _buildEmpty(theme),
     );
@@ -117,7 +146,10 @@ class _MoveMoneySheetState extends State<MoveMoneySheet> {
                     (c) => DropdownMenuItem(value: c.id, child: Text(c.name)),
                   )
                   .toList(),
-              onChanged: (id) => setState(() => _toId = id),
+              onChanged: (id) {
+                if (id == _fromId) return;
+                setState(() => _toId = id);
+              },
               validator: (v) => v == null ? 'Select a category' : null,
             ),
             const SizedBox(height: 12),
@@ -130,8 +162,7 @@ class _MoveMoneySheetState extends State<MoveMoneySheet> {
                 prefixText: r'$',
                 border: OutlineInputBorder(),
               ),
-              validator: (v) =>
-                  _parseAmount(v) == null ? 'Enter a positive amount' : null,
+              validator: _validateAmount,
             ),
             const SizedBox(height: 16),
             SizedBox(
