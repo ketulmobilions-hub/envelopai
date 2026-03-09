@@ -1,21 +1,28 @@
 # Branching Strategy
 
-Every issue must follow this workflow — no exceptions:
+Every feature follows this workflow — no exceptions:
 
 1. Always branch from `dev`: `git checkout dev && git pull && git checkout -b feat/<issue-number>-<short-slug>`
    - Example: `feat/1.1-flutter-scaffold`, `feat/2.3-drift-daos`
-2. Use a Git worktree for the feature branch (keeps the working directory clean)
-3. Do all work on the feature branch
-4. Open a PR: `feat/*` → `dev` (never directly to `main`)
-5. `main` is only updated via PR from `dev` at release milestones
+2. Do all work on the feature branch
+3. When the feature is complete, merge it directly into `dev`:
+   ```
+   git checkout dev && git pull && git merge feat/<issue-number>-<slug> && git push
+   ```
+4. After merging, close the corresponding GitHub issue
+5. Delete the feature branch after merging
+6. After all issues in a phase are merged into `dev`, merge `dev` into `main`:
+   ```
+   git checkout main && git pull && git merge dev && git push
+   ```
+
+No pull requests — all merges are done directly via the command line.
 
 ```
-main   ← releases only, PR from dev required
-  dev  ← all feature PRs land here, no direct push
-    feat/<issue-number>-<slug>  ← one branch per issue
+main   ← phase releases only, merged from dev
+  dev  ← all feature branches land here
+    feat/<issue-number>-<slug>  ← one branch per issue, created from dev
 ```
-
-Both `main` and `dev` have branch protection rules enforced on GitHub (no direct push, PR required).
 
 # Code Review Rule
 
