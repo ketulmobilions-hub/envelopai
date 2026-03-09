@@ -72,9 +72,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i112.ICategoryGroupsRepository>(
       () => _i385.CategoryGroupsRepository(gh<_i1034.CategoryGroupsDao>()),
     );
-    gh.factory<_i485.BudgetBloc>(
-      () => _i485.BudgetBloc(gh<_i112.IBudgetRepository>()),
-    );
     gh.lazySingleton<_i112.ICategoriesRepository>(
       () => _i106.CategoriesRepository(gh<_i261.CategoriesDao>()),
     );
@@ -86,6 +83,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i112.IAccountsRepository>(
       () => _i65.AccountsRepository(gh<_i171.AccountsDao>()),
+    );
+    gh.factory<_i485.BudgetBloc>(
+      () => _i485.BudgetBloc(
+        gh<_i112.IBudgetRepository>(),
+        gh<_i112.ICategoryGroupsRepository>(),
+        gh<_i112.ICategoriesRepository>(),
+      ),
     );
     gh.lazySingleton<_i1017.SeedService>(
       () => _i1017.SeedService(

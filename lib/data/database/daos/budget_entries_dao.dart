@@ -30,8 +30,9 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
     budgetEntriesTable,
   )..where((t) => t.id.equals(id))).getSingleOrNull();
 
-  /// Reactive stream of all budget entries for the given month and year,
-  /// ordered by `categoryId` for stable list rendering.
+  /// Reactive stream of all budget entries for the given month and year.
+  /// Ordered by `categoryId` for stable equality checks — display order is
+  /// determined by `Category.sortOrder` in the widget layer.
   Stream<List<BudgetEntryRow>> watchForMonth(int month, int year) =>
       (select(budgetEntriesTable)
             ..where((t) => t.month.equals(month) & t.year.equals(year))
