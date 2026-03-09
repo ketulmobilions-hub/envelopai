@@ -31,11 +31,11 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
   )..where((t) => t.id.equals(id))).getSingleOrNull();
 
   /// Reactive stream of all budget entries for the given month and year,
-  /// used by BudgetBloc to rebuild the budget screen on any change.
+  /// ordered by `categoryId` for stable list rendering.
   Stream<List<BudgetEntryRow>> watchForMonth(int month, int year) =>
-      (select(budgetEntriesTable)..where(
-            (t) => t.month.equals(month) & t.year.equals(year),
-          ))
+      (select(budgetEntriesTable)
+            ..where((t) => t.month.equals(month) & t.year.equals(year))
+            ..orderBy([(t) => OrderingTerm.asc(t.categoryId)]))
           .watch();
 
   /// Returns the existing entry for [categoryId]/[month]/[year] or inserts
@@ -95,4 +95,39 @@ class BudgetEntriesDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> deleteById(String id) =>
       (delete(budgetEntriesTable)..where((t) => t.id.equals(id))).go();
+
+  /// Reactive stream of the To-Be-Budgeted scalar for [month]/[year].
+  ///
+  /// TBB = sum(income transactions for month) − sum(budget_entries.budgeted
+  /// for month). Re-emits whenever either the `transactions` or
+  /// `budget_entries` table changes.
+  ///
+  /// The raw SQL table names `'transactions'` and `'budget_entries'` must stay
+  /// in sync with [TransactionsTable.tableName] and
+  /// [BudgetEntriesTable.tableName] if either is renamed.
+  Stream<int> watchTbbForMonth(int month, int year) {
+    final startMs = DateTime.utc(year, month).millisecondsSinceEpoch;
+    final endMs = DateTime.utc(year, month + 1).millisecondsSinceEpoch;
+    return attachedDatabase
+        .customSelect(
+          'SELECT '
+          'COALESCE((SELECT SUM(amount) FROM transactions '
+          "WHERE type = 'income' AND is_deleted = 0 "
+          'AND date >= ? AND date < ?), 0) - '
+          'COALESCE((SELECT SUM(budgeted) FROM budget_entries '
+          'WHERE month = ? AND year = ?), 0) AS tbb',
+          variables: [
+            Variable<int>(startMs),
+            Variable<int>(endMs),
+            Variable<int>(month),
+            Variable<int>(year),
+          ],
+          readsFrom: {
+            attachedDatabase.budgetEntriesTable,
+            attachedDatabase.transactionsTable,
+          },
+        )
+        .watchSingle()
+        .map((row) => row.read<int>('tbb'));
+  }
 }

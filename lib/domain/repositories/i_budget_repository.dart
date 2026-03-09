@@ -5,6 +5,16 @@ abstract interface class IBudgetRepository {
   Future<List<BudgetEntry>> getAll();
   Future<BudgetEntry?> getById(String id);
   Stream<List<BudgetEntry>> watchForMonth(int month, int year);
+
+  /// Combined stream of budget entries and the To-Be-Budgeted scalar.
+  ///
+  /// Re-emits whenever either entries or income transactions change, making
+  /// both the category list and the TBB banner update in real time.
+  Stream<({List<BudgetEntry> entries, int tbb})> watchMonthSummary(
+    int month,
+    int year,
+  );
+
   Future<BudgetEntry> getOrCreate(String categoryId, int month, int year);
   Future<void> save(BudgetEntry entry);
   Future<void> updateAvailable(String id, int available);

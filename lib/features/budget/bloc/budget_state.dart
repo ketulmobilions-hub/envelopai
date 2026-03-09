@@ -18,16 +18,23 @@ final class BudgetLoading extends BudgetState {
 final class BudgetLoaded extends BudgetState {
   const BudgetLoaded({
     required this.entries,
+    required this.tbb,
     required this.month,
     required this.year,
   });
 
   final List<BudgetEntry> entries;
+
+  /// To-Be-Budgeted: income this month minus total budgeted, in minor
+  /// currency units. Positive = money available to assign; negative =
+  /// over-budgeted.
+  final int tbb;
+
   final int month;
   final int year;
 
   @override
-  List<Object?> get props => [entries, month, year];
+  List<Object?> get props => [entries, tbb, month, year];
 }
 
 final class BudgetError extends BudgetState {
