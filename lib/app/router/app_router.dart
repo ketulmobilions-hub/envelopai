@@ -1,5 +1,6 @@
 import 'package:envelope/features/accounts/accounts.dart';
 import 'package:envelope/features/budget/budget.dart';
+import 'package:envelope/features/transactions/transactions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -82,15 +83,16 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       path: _Paths.addTransaction,
       name: AppRoutes.addTransaction,
-      builder: (context, state) =>
-          const _PlaceholderScreen(title: 'Add Transaction'),
+      builder: (context, state) => AddEditTransactionScreen(
+        initialAccountId: state.uri.queryParameters['accountId'],
+      ),
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
       path: _Paths.editTransaction,
       name: AppRoutes.editTransaction,
-      builder: (context, state) => _PlaceholderScreen(
-        title: 'Edit Transaction: ${state.pathParameters[AppRouteParams.id]}',
+      builder: (context, state) => AddEditTransactionScreen(
+        transactionId: state.pathParameters[AppRouteParams.id],
       ),
     ),
     GoRoute(

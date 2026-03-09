@@ -18,6 +18,13 @@ Every feature follows this workflow — no exceptions:
 
 No pull requests — all merges are done directly via the command line.
 
+# Post-Merge Review Rule
+
+**After merging every feature branch into `dev`**, always:
+1. List all added and modified files from that feature (use `git show --stat <commit>`)
+2. Present the review order following the data flow: domain models → events/states → bloc → widgets (smallest first) → page → plumbing (barrel, DI, router) → tests
+3. Wait for the user to confirm they have reviewed the code before starting the next issue
+
 ```
 main   ← phase releases only, merged from dev
   dev  ← all feature branches land here
