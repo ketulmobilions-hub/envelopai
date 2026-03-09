@@ -89,6 +89,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i112.IBudgetRepository>(),
         gh<_i112.ICategoryGroupsRepository>(),
         gh<_i112.ICategoriesRepository>(),
+        gh<_i460.SharedPreferences>(),
       ),
     );
     gh.lazySingleton<_i1017.SeedService>(

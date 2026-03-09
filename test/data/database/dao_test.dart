@@ -1,5 +1,5 @@
-// isNull is hidden from drift to avoid ambiguity with flutter_test's isNull.
-import 'package:drift/drift.dart' hide isNull;
+// isNotNull/isNull are hidden from drift to avoid ambiguity with flutter_test.
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:envelope/data/database/app_database.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -192,6 +192,189 @@ void main() {
       expect(rows.length, 1);
       expect(rows.first.month, 3);
       expect(rows.first.year, 2026);
+    });
+
+    group('rolloverMonth', () {
+      late String categoryId2;
+
+      setUp(() async {
+        categoryId2 = _uuid.v4();
+        await db.categories.upsert(
+          CategoriesTableCompanion.insert(
+            id: categoryId2,
+            groupId: groupId,
+            name: 'Cat2',
+          ),
+        );
+      });
+
+      test('deducts overspent available from next month budgeted', () async {
+        // Feb 2026: budgeted=1000, activity=2000, available=-1000.
+        await db.budgetEntries.upsert(
+          BudgetEntriesTableCompanion.insert(
+            id: _uuid.v4(),
+            categoryId: categoryId,
+            month: 2,
+            year: 2026,
+            budgeted: const Value(1000),
+            activity: const Value(2000),
+            available: const Value(-1000),
+          ),
+        );
+
+        await db.budgetEntries.rolloverMonth(2, 2026);
+
+        final march = await db.budgetEntries.getOrCreate(categoryId, 3, 2026);
+        // 0 (default budgeted) - 1000 (shortfall) = -1000.
+        expect(march.budgeted, -1000);
+        expect(march.available, -1000);
+      });
+
+      test('non-overspent categories are unaffected', () async {
+        // Cat1 (positive available): should NOT have a March entry created.
+        await db.budgetEntries.upsert(
+          BudgetEntriesTableCompanion.insert(
+            id: _uuid.v4(),
+            categoryId: categoryId,
+            month: 2,
+            year: 2026,
+            budgeted: const Value(5000),
+            activity: const Value(2000),
+            available: const Value(3000),
+          ),
+        );
+        // Cat2 (overspent): should have March budgeted reduced.
+        await db.budgetEntries.upsert(
+          BudgetEntriesTableCompanion.insert(
+            id: _uuid.v4(),
+            categoryId: categoryId2,
+            month: 2,
+            year: 2026,
+            budgeted: const Value(1000),
+            activity: const Value(1500),
+            available: const Value(-500),
+          ),
+        );
+
+        await db.budgetEntries.rolloverMonth(2, 2026);
+
+        // Cat1 March must NOT have been created by rollover.
+        final cat1March = await (db.select(db.budgetEntriesTable)
+              ..where(
+                (t) =>
+                    t.categoryId.equals(categoryId) &
+                    t.month.equals(3) &
+                    t.year.equals(2026),
+              ))
+            .getSingleOrNull();
+        expect(cat1March, isNull);
+
+        // Cat2 March: budgeted reduced by 500.
+        final cat2March = await db.budgetEntries.getOrCreate(
+          categoryId2,
+          3,
+          2026,
+        );
+        expect(cat2March.budgeted, -500);
+        expect(cat2March.available, -500);
+      });
+
+      test('creates next month entry if it does not exist yet', () async {
+        await db.budgetEntries.upsert(
+          BudgetEntriesTableCompanion.insert(
+            id: _uuid.v4(),
+            categoryId: categoryId,
+            month: 2,
+            year: 2026,
+            budgeted: const Value(500),
+            activity: const Value(800),
+            available: const Value(-300),
+          ),
+        );
+
+        await db.budgetEntries.rolloverMonth(2, 2026);
+
+        final march = await (db.select(db.budgetEntriesTable)
+              ..where(
+                (t) =>
+                    t.categoryId.equals(categoryId) &
+                    t.month.equals(3) &
+                    t.year.equals(2026),
+              ))
+            .getSingleOrNull();
+        expect(march, isNotNull);
+        expect(march!.budgeted, -300);
+      });
+
+      test('wraps December → January across year boundary', () async {
+        await db.budgetEntries.upsert(
+          BudgetEntriesTableCompanion.insert(
+            id: _uuid.v4(),
+            categoryId: categoryId,
+            month: 12,
+            year: 2025,
+            budgeted: const Value(500),
+            activity: const Value(700),
+            available: const Value(-200),
+          ),
+        );
+
+        await db.budgetEntries.rolloverMonth(12, 2025);
+
+        final jan2026 = await (db.select(db.budgetEntriesTable)
+              ..where(
+                (t) =>
+                    t.categoryId.equals(categoryId) &
+                    t.month.equals(1) &
+                    t.year.equals(2026),
+              ))
+            .getSingleOrNull();
+        expect(jan2026, isNotNull);
+        expect(jan2026!.budgeted, -200);
+      });
+
+      test('is a no-op when no overspent categories exist', () async {
+        // No entries at all for Feb 2026.
+        await db.budgetEntries.rolloverMonth(2, 2026);
+
+        final march = await db.budgetEntries.watchForMonth(3, 2026).first;
+        expect(march, isEmpty);
+      });
+
+      test('reduces existing next-month budgeted rather than overwriting',
+          () async {
+        // Cat already has $50 budgeted in March.
+        await db.budgetEntries.upsert(
+          BudgetEntriesTableCompanion.insert(
+            id: _uuid.v4(),
+            categoryId: categoryId,
+            month: 3,
+            year: 2026,
+            budgeted: const Value(5000),
+            activity: const Value(0),
+            available: const Value(5000),
+          ),
+        );
+        // Feb overspent by $10.
+        await db.budgetEntries.upsert(
+          BudgetEntriesTableCompanion.insert(
+            id: _uuid.v4(),
+            categoryId: categoryId,
+            month: 2,
+            year: 2026,
+            budgeted: const Value(1000),
+            activity: const Value(2000),
+            available: const Value(-1000),
+          ),
+        );
+
+        await db.budgetEntries.rolloverMonth(2, 2026);
+
+        final march = await db.budgetEntries.getOrCreate(categoryId, 3, 2026);
+        // 5000 - 1000 = 4000.
+        expect(march.budgeted, 4000);
+        expect(march.available, 4000);
+      });
     });
   });
 

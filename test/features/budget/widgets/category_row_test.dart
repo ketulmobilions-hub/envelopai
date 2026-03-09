@@ -5,39 +5,39 @@ import 'package:flutter_test/flutter_test.dart';
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-const _cat = Category(
-  id: 'c1',
-  groupId: 'g1',
-  name: 'Rent',
-  sortOrder: 0,
-);
-
-const _entry = BudgetEntry(
-  id: 'e1',
-  categoryId: 'c1',
-  month: 3,
-  year: 2026,
-  budgeted: 150000,
-  activity: 150000,
-  available: 0,
-);
-
 void main() {
   group('CategoryRow', () {
+    const cat = Category(
+      id: 'c1',
+      groupId: 'g1',
+      name: 'Rent',
+      sortOrder: 0,
+    );
+
+    const entry = BudgetEntry(
+      id: 'e1',
+      categoryId: 'c1',
+      month: 3,
+      year: 2026,
+      budgeted: 150000,
+      activity: 150000,
+      available: 0,
+    );
+
     testWidgets('shows category name', (tester) async {
-      await tester.pumpWidget(_wrap(const CategoryRow(category: _cat)));
+      await tester.pumpWidget(_wrap(const CategoryRow(category: cat)));
       expect(find.text('Rent'), findsOneWidget);
     });
 
     testWidgets('shows zero amounts when entry is null', (tester) async {
-      await tester.pumpWidget(_wrap(const CategoryRow(category: _cat)));
+      await tester.pumpWidget(_wrap(const CategoryRow(category: cat)));
       // All three columns show $0.00.
       expect(find.text(r'$0.00'), findsNWidgets(3));
     });
 
     testWidgets('shows budgeted and activity from entry', (tester) async {
       await tester
-          .pumpWidget(_wrap(const CategoryRow(category: _cat, entry: _entry)));
+          .pumpWidget(_wrap(const CategoryRow(category: cat, entry: entry)));
       expect(find.text(r'$1,500.00'), findsNWidgets(2)); // budgeted + activity
       expect(find.text(r'$0.00'), findsOneWidget); // available
     });
@@ -53,7 +53,7 @@ void main() {
         available: -50000,
       );
       await tester.pumpWidget(
-        _wrap(const CategoryRow(category: _cat, entry: overspent)),
+        _wrap(const CategoryRow(category: cat, entry: overspent)),
       );
       expect(find.text(r'-$500.00'), findsOneWidget);
       // Verify the overspent amount is rendered in the error colour.
@@ -61,6 +61,60 @@ void main() {
       final colorScheme =
           Theme.of(tester.element(find.text(r'-$500.00'))).colorScheme;
       expect(text.style?.color, colorScheme.error);
+    });
+
+    testWidgets('shows red left border when available is negative',
+        (tester) async {
+      const overspent = BudgetEntry(
+        id: 'e3',
+        categoryId: 'c1',
+        month: 3,
+        year: 2026,
+        budgeted: 50000,
+        activity: 100000,
+        available: -50000,
+      );
+      await tester.pumpWidget(
+        _wrap(const CategoryRow(category: cat, entry: overspent)),
+      );
+
+      // A DecoratedBox with a left border should be present.
+      final decorated = tester.widgetList<DecoratedBox>(
+        find.byType(DecoratedBox),
+      );
+      final colorScheme =
+          Theme.of(tester.element(find.byType(CategoryRow))).colorScheme;
+
+      final hasRedLeftBorder = decorated.any((box) {
+        final decoration = box.decoration;
+        if (decoration is! BoxDecoration) return false;
+        final border = decoration.border;
+        if (border is! Border) return false;
+        return border.left.color == colorScheme.error &&
+            border.left.width == 3;
+      });
+      expect(hasRedLeftBorder, isTrue);
+    });
+
+    testWidgets('no red border when available is zero or positive',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(const CategoryRow(category: cat, entry: entry)),
+      );
+
+      final colorScheme =
+          Theme.of(tester.element(find.byType(CategoryRow))).colorScheme;
+
+      final hasRedLeftBorder = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+          .any((box) {
+        final decoration = box.decoration;
+        if (decoration is! BoxDecoration) return false;
+        final border = decoration.border;
+        if (border is! Border) return false;
+        return border.left.color == colorScheme.error;
+      });
+      expect(hasRedLeftBorder, isFalse);
     });
   });
 

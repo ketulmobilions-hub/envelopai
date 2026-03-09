@@ -6,6 +6,7 @@ import 'package:envelope/domain/repositories/repositories.dart';
 import 'package:envelope/features/budget/budget.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockIBudgetRepository extends Mock implements IBudgetRepository {}
 
@@ -14,22 +15,30 @@ class MockICategoryGroupsRepository extends Mock
 
 class MockICategoriesRepository extends Mock implements ICategoriesRepository {}
 
+class MockSharedPreferences extends Mock implements SharedPreferences {}
+
 void main() {
   group('BudgetBloc', () {
     late MockIBudgetRepository budgetRepo;
     late MockICategoryGroupsRepository groupsRepo;
     late MockICategoriesRepository categoriesRepo;
+    late MockSharedPreferences prefs;
 
     setUp(() {
       budgetRepo = MockIBudgetRepository();
       groupsRepo = MockICategoryGroupsRepository();
       categoriesRepo = MockICategoriesRepository();
+      prefs = MockSharedPreferences();
+      // Default: no month has been rolled over yet.
+      when(() => prefs.getBool(any())).thenReturn(false);
+      when(() => prefs.setBool(any(), any())).thenAnswer((_) async => true);
     });
 
     tearDown(() {
       verifyNoMoreInteractions(budgetRepo);
       verifyNoMoreInteractions(groupsRepo);
       verifyNoMoreInteractions(categoriesRepo);
+      verifyNoMoreInteractions(prefs);
     });
 
     BudgetEntry makeEntry({
@@ -76,6 +85,9 @@ void main() {
       int year = 2026,
     }) {
       when(
+        () => budgetRepo.rolloverMonth(any(), any()),
+      ).thenAnswer((_) async {});
+      when(
         () => budgetRepo.watchMonthSummary(month, year),
       ).thenAnswer(
         (_) => Stream.value(
@@ -91,7 +103,7 @@ void main() {
     }
 
     BudgetBloc buildBloc() =>
-        BudgetBloc(budgetRepo, groupsRepo, categoriesRepo);
+        BudgetBloc(budgetRepo, groupsRepo, categoriesRepo, prefs);
 
     blocTest<BudgetBloc, BudgetState>(
       'emits [BudgetLoading, BudgetLoaded] when BudgetMonthChanged is added',
@@ -111,6 +123,9 @@ void main() {
             .having((s) => s.categories, 'categories', [makeCategory()]),
       ],
       verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2026_3')).called(1);
+        verify(() => prefs.setBool('rollover_applied_2026_3', true)).called(1);
+        verify(() => budgetRepo.rolloverMonth(2, 2026)).called(1);
         verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
         verify(() => groupsRepo.watchAll()).called(1);
         verify(() => categoriesRepo.watchAll()).called(1);
@@ -130,6 +145,9 @@ void main() {
         isA<BudgetLoaded>().having((s) => s.tbb, 'tbb', -2000),
       ],
       verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2026_3')).called(1);
+        verify(() => prefs.setBool('rollover_applied_2026_3', true)).called(1);
+        verify(() => budgetRepo.rolloverMonth(2, 2026)).called(1);
         verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
         verify(() => groupsRepo.watchAll()).called(1);
         verify(() => categoriesRepo.watchAll()).called(1);
@@ -139,6 +157,9 @@ void main() {
     blocTest<BudgetBloc, BudgetState>(
       'emits BudgetError when budget repository throws',
       build: () {
+        when(
+          () => budgetRepo.rolloverMonth(any(), any()),
+        ).thenAnswer((_) async {});
         when(
           () => budgetRepo.watchMonthSummary(any(), any()),
         ).thenAnswer((_) => Stream.error(Exception('db error')));
@@ -159,6 +180,9 @@ void main() {
         ),
       ],
       verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2026_3')).called(1);
+        verify(() => prefs.setBool('rollover_applied_2026_3', true)).called(1);
+        verify(() => budgetRepo.rolloverMonth(2, 2026)).called(1);
         verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
         verify(() => groupsRepo.watchAll()).called(1);
         verify(() => categoriesRepo.watchAll()).called(1);
@@ -171,6 +195,9 @@ void main() {
         // Month 3: stream never emits — proves it is cancelled.
         final controller = StreamController<
             ({List<BudgetEntry> entries, int tbb})>();
+        when(
+          () => budgetRepo.rolloverMonth(any(), any()),
+        ).thenAnswer((_) async {});
         when(
           () => budgetRepo.watchMonthSummary(3, 2026),
         ).thenAnswer((_) => controller.stream);
@@ -197,6 +224,19 @@ void main() {
       verify: (_) {
         verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
         verify(() => budgetRepo.watchMonthSummary(4, 2026)).called(1);
+        // rolloverMonth is called for both month 3 (before cancellation
+        // completes its await) and month 4.
+        verify(
+          () => budgetRepo.rolloverMonth(any(), any()),
+        ).called(greaterThanOrEqualTo(1));
+        // prefs interactions for both months are intentionally verified with
+        // a lenient matcher because the cancellation point of the month-3
+        // handler is non-deterministic — it may or may not complete its
+        // setBool before the restartable transformer kills the emitter.
+        verify(() => prefs.getBool(any())).called(greaterThanOrEqualTo(1));
+        verify(
+          () => prefs.setBool(any(), any()),
+        ).called(greaterThanOrEqualTo(1));
         // watchAll is called twice: once before cancellation (month 3) and
         // once after restart (month 4).
         verify(() => groupsRepo.watchAll()).called(2);
@@ -231,6 +271,9 @@ void main() {
         isA<BudgetLoaded>(),
       ],
       verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2026_3')).called(1);
+        verify(() => prefs.setBool('rollover_applied_2026_3', true)).called(1);
+        verify(() => budgetRepo.rolloverMonth(2, 2026)).called(1);
         verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
         verify(() => groupsRepo.watchAll()).called(1);
         verify(() => categoriesRepo.watchAll()).called(1);
@@ -266,6 +309,9 @@ void main() {
         isA<BudgetLoaded>(),
       ],
       verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2026_3')).called(1);
+        verify(() => prefs.setBool('rollover_applied_2026_3', true)).called(1);
+        verify(() => budgetRepo.rolloverMonth(2, 2026)).called(1);
         verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
         verify(() => groupsRepo.watchAll()).called(1);
         verify(() => categoriesRepo.watchAll()).called(1);
@@ -296,6 +342,9 @@ void main() {
       },
       expect: () => [const BudgetLoading(), isA<BudgetLoaded>()],
       verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2026_3')).called(1);
+        verify(() => prefs.setBool('rollover_applied_2026_3', true)).called(1);
+        verify(() => budgetRepo.rolloverMonth(2, 2026)).called(1);
         verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
         verify(() => groupsRepo.watchAll()).called(1);
         verify(() => categoriesRepo.watchAll()).called(1);
@@ -303,6 +352,108 @@ void main() {
         verifyNever(
           () => budgetRepo.moveMoney(any(), any(), any(), any(), any()),
         );
+      },
+    );
+
+    blocTest<BudgetBloc, BudgetState>(
+      'BudgetEntryAllocated is ignored when month/year does not match '
+      'current state',
+      build: () {
+        stubAll();
+        return buildBloc();
+      },
+      act: (bloc) async {
+        bloc.add(const BudgetMonthChanged(month: 3, year: 2026));
+        await Future<void>.delayed(Duration.zero);
+        // Stale event — different month.
+        bloc.add(
+          const BudgetEntryAllocated(
+            categoryId: 'c1',
+            month: 4,
+            year: 2026,
+            budgeted: 20000,
+          ),
+        );
+      },
+      expect: () => [const BudgetLoading(), isA<BudgetLoaded>()],
+      verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2026_3')).called(1);
+        verify(() => prefs.setBool('rollover_applied_2026_3', true)).called(1);
+        verify(() => budgetRepo.rolloverMonth(2, 2026)).called(1);
+        verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
+        verify(() => groupsRepo.watchAll()).called(1);
+        verify(() => categoriesRepo.watchAll()).called(1);
+        // allocate must NOT be called for the stale event.
+        verifyNever(
+          () => budgetRepo.allocate(any(), any(), any(), any()),
+        );
+      },
+    );
+
+    blocTest<BudgetBloc, BudgetState>(
+      'rollover is skipped on second open of the same month',
+      build: () {
+        // Simulate that rollover for month 3/2026 was already applied.
+        // Stubs are built manually (not via stubAll) so that rolloverMonth has
+        // no registered answer — any accidental call will throw, making
+        // verifyNever a belt-and-suspenders check rather than the only guard.
+        when(
+          () => prefs.getBool('rollover_applied_2026_3'),
+        ).thenReturn(true);
+        when(
+          () => budgetRepo.watchMonthSummary(3, 2026),
+        ).thenAnswer(
+          (_) => Stream.value((entries: <BudgetEntry>[], tbb: 0)),
+        );
+        when(() => groupsRepo.watchAll())
+            .thenAnswer((_) => Stream.value([]));
+        when(() => categoriesRepo.watchAll())
+            .thenAnswer((_) => Stream.value([]));
+        return buildBloc();
+      },
+      act: (bloc) =>
+          bloc.add(const BudgetMonthChanged(month: 3, year: 2026)),
+      expect: () => [const BudgetLoading(), isA<BudgetLoaded>()],
+      verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2026_3')).called(1);
+        // rolloverMonth must NOT be called — prefs flag is already set.
+        verifyNever(() => budgetRepo.rolloverMonth(any(), any()));
+        // setBool must NOT be called — rollover was skipped entirely.
+        verifyNever(() => prefs.setBool(any(), any()));
+        verify(() => budgetRepo.watchMonthSummary(3, 2026)).called(1);
+        verify(() => groupsRepo.watchAll()).called(1);
+        verify(() => categoriesRepo.watchAll()).called(1);
+      },
+    );
+
+    blocTest<BudgetBloc, BudgetState>(
+      'rollover wraps December → January correctly',
+      build: () {
+        when(
+          () => budgetRepo.rolloverMonth(any(), any()),
+        ).thenAnswer((_) async {});
+        when(
+          () => budgetRepo.watchMonthSummary(1, 2027),
+        ).thenAnswer(
+          (_) => Stream.value((entries: <BudgetEntry>[], tbb: 0)),
+        );
+        when(() => groupsRepo.watchAll())
+            .thenAnswer((_) => Stream.value([]));
+        when(() => categoriesRepo.watchAll())
+            .thenAnswer((_) => Stream.value([]));
+        return buildBloc();
+      },
+      act: (bloc) =>
+          bloc.add(const BudgetMonthChanged(month: 1, year: 2027)),
+      expect: () => [const BudgetLoading(), isA<BudgetLoaded>()],
+      verify: (_) {
+        verify(() => prefs.getBool('rollover_applied_2027_1')).called(1);
+        verify(() => prefs.setBool('rollover_applied_2027_1', true)).called(1);
+        // Previous month of January 2027 is December 2026.
+        verify(() => budgetRepo.rolloverMonth(12, 2026)).called(1);
+        verify(() => budgetRepo.watchMonthSummary(1, 2027)).called(1);
+        verify(() => groupsRepo.watchAll()).called(1);
+        verify(() => categoriesRepo.watchAll()).called(1);
       },
     );
   });

@@ -17,21 +17,23 @@ typedef MoveMoneyResult = ({
 /// Requires at least two categories — renders a disabled form with an
 /// explanatory message when [categories] has fewer than two entries.
 ///
-/// [budgetedByCategoryId] maps each category id to its currently budgeted
-/// amount in minor currency units. Used to prevent the user from moving
-/// more than what is budgeted in the selected "from" category.
+/// [availableByCategoryId] maps each category id to its available balance in
+/// minor currency units. Used to prevent the user from moving more than what
+/// is available in the selected "from" category. Capping against `available`
+/// (not `budgeted`) handles post-rollover entries whose `budgeted` may be
+/// negative.
 class MoveMoneySheet extends StatefulWidget {
   const MoveMoneySheet({
     required this.categories,
-    required this.budgetedByCategoryId,
+    required this.availableByCategoryId,
     super.key,
   });
 
   /// All visible categories available as transfer source or destination.
   final List<Category> categories;
 
-  /// Budgeted amount (minor currency units) keyed by category id.
-  final Map<String, int> budgetedByCategoryId;
+  /// Available balance (minor currency units) keyed by category id.
+  final Map<String, int> availableByCategoryId;
 
   @override
   State<MoveMoneySheet> createState() => _MoveMoneySheetState();
@@ -83,10 +85,10 @@ class _MoveMoneySheetState extends State<MoveMoneySheet> {
     // Require a From category before validating the cap so the user gets a
     // clear error rather than a silent pass.
     if (fromId == null) return 'Select a from category first';
-    final maxCents = widget.budgetedByCategoryId[fromId] ?? 0;
-    if (maxCents <= 0) return 'No positive amount is budgeted in this category';
+    final maxCents = widget.availableByCategoryId[fromId] ?? 0;
+    if (maxCents <= 0) return 'No funds available to move in this category';
     if ((parsed * 100).round() > maxCents) {
-      return 'Only ${_fmt.format(maxCents / 100)} budgeted in this category';
+      return 'Only ${_fmt.format(maxCents / 100)} available in this category';
     }
     return null;
   }
